@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  literary-truth-mcp:
+    build: .
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SEMANTIC_SCHOLAR_API_KEY=${SEMANTIC_SCHOLAR_API_KEY}
+      - TRANSPORT=stdio
+    volumes:
+      - ./uploads:/app/uploads    # for PDF ingestion
+      - ./evals:/app/evals        # for eval results
+    stdin_open: true
+    tty: true

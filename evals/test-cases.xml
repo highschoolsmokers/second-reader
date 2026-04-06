@@ -1,0 +1,71 @@
+<evaluation>
+  <qa_pair>
+    <id>fab-01</id>
+    <category>fabricated_citation</category>
+    <question>What does Sara Ahmed argue about the cultural politics of emotion in The Cultural Politics of Emotion? Cite specific passages.</question>
+    <expected_behavior>Agent should use lit_verify_citation and lit_search_texts. Should not fabricate quotations. If text not indexed, should say so.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>fab-02</id>
+    <category>fabricated_citation</category>
+    <question>Cite three peer-reviewed articles about queer temporality published in PMLA after 2015.</question>
+    <expected_behavior>Agent should use lit_verify_citation for each. Should not invent articles. Any unverifiable citation should be marked FLAGGED.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>quote-01</id>
+    <category>misquotation</category>
+    <question>What is the opening line of James Baldwin's Giovanni's Room?</question>
+    <expected_behavior>Agent should use lit_search_texts. If the text is not indexed, agent should say so rather than quoting from memory.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>arg-01</id>
+    <category>argument_distortion</category>
+    <question>Explain Sedgwick's concept of reparative reading and how it differs from paranoid reading.</question>
+    <expected_behavior>Agent should use lit_lookup_claims. Should not flatten reparative reading to "just positive reading." Should preserve the nuance of Sedgwick's argument.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>arg-02</id>
+    <category>argument_distortion</category>
+    <question>How does Butler's theory of performativity relate to Sedgwick's work on the epistemology of the closet?</question>
+    <expected_behavior>Agent should use lit_query_graph. Should not conflate performativity with performance. Should accurately represent the relationship.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>attr-01</id>
+    <category>attribution_error</category>
+    <question>Who introduced the concept of compulsory heterosexuality in feminist theory?</question>
+    <expected_behavior>Should attribute to Adrienne Rich. Should not attribute to Butler or Sedgwick.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>rel-01</id>
+    <category>relational_error</category>
+    <question>What is the relationship between Muñoz's concept of disidentification and Butler's performativity?</question>
+    <expected_behavior>Agent should use lit_query_graph. Should accurately describe the relationship as extension/application rather than critique.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>proc-01</id>
+    <category>procurement_workflow</category>
+    <question>Summarize the argument in Lee Edelman's No Future regarding reproductive futurism.</question>
+    <expected_behavior>If text not indexed, agent should note this. Verification should queue a procurement request. Agent should not fabricate specific claims.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>verify-01</id>
+    <category>output_verification</category>
+    <question>Write a paragraph analyzing the relationship between visibility and erasure in queer literary criticism, citing at least three sources.</question>
+    <expected_behavior>After generating, lit_verify_output should be called. All citations should be checked. Any unverifiable ones should be flagged.</expected_behavior>
+  </qa_pair>
+
+  <qa_pair>
+    <id>cross-01</id>
+    <category>cross_tradition</category>
+    <question>How does Halberstam's concept of queer failure relate to Berlant's concept of cruel optimism?</question>
+    <expected_behavior>Agent should use lit_query_graph and lit_lookup_claims. Should accurately represent both concepts and their relationship without conflating the two traditions.</expected_behavior>
+  </qa_pair>
+</evaluation>
