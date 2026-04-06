@@ -1,0 +1,37 @@
+{
+  "name": "literary-truth-mcp-server",
+  "version": "1.1.0",
+  "description": "MCP server for truth-grounding in academic literary criticism",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "setup-db": "tsx scripts/setup-db.ts",
+    "ingest": "tsx scripts/ingest.ts",
+    "seed-claims": "tsx scripts/seed-claims.ts",
+    "eval": "tsx scripts/run-evals.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check-scripts": "tsc --project tsconfig.scripts.json",
+    "format": "biome check --write src/",
+    "lint": "biome check src/"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@neondatabase/serverless": "^0.10.0",
+    "express": "^4.21.0",
+    "pdf-parse": "^1.1.1",
+    "string-similarity-js": "^2.1.4",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.10",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}
