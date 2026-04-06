@@ -13,13 +13,13 @@ export async function ingestPdf(params: IngestPdfParams): Promise<string> {
   const reqId = createRequestId();
   logger.info('Starting PDF ingestion', { reqId, file_path: params.file_path });
 
-  // Step 1: Extract text
-  const { text, pageCount } = await extractPdfText(params.file_path);
+  // Step 1: Extract text (with OCR fallback)
+  const { text, pageCount, ocrUsed } = await extractPdfText(params.file_path);
   if (!text.trim()) {
-    return JSON.stringify({ error: 'PDF extraction produced no text' });
+    return JSON.stringify({ error: 'PDF extraction produced no text (including OCR fallback)' });
   }
 
-  logger.info('PDF extracted', { reqId, pageCount, textLength: text.length });
+  logger.info('PDF extracted', { reqId, pageCount, textLength: text.length, ocrUsed });
 
   // Step 2: Extract metadata with Claude if not provided
   let author = params.author;
@@ -55,37 +55,71 @@ ${text.slice(0, 2000)}`,
     }
   }
 
-  // Step 3: Create canonical_texts record
-  const textRows = await sql(
-    `
-    INSERT INTO canonical_texts (author, title, year, text_type, tradition)
-    VALUES ($1, $2, $3, $4, $5)
-    RETURNING id
-  `,
-    [author, title, year, textType, params.tradition || null],
+  // Step 3: Deduplication check — look for existing text with same title+author
+  const existing = await sql(
+    `SELECT id, title, author FROM canonical_texts
+     WHERE title ILIKE $1 AND author ILIKE $2
+     LIMIT 1`,
+    [`%${title}%`, `%${author}%`],
   );
-  const textId = (textRows[0] as Record<string, unknown>).id as string;
 
-  // Step 4: Chunk text
-  const chunks = chunkText(text);
-  logger.info('Text chunked', { reqId, chunkCount: chunks.length });
-
-  // Step 5: Generate embeddings in batches
-  const chunkTexts = chunks.map((c) => c.text);
-  const embeddings = await generateEmbeddings(chunkTexts);
-
-  // Step 6: Insert chunks with embeddings
-  for (let i = 0; i < chunks.length; i++) {
-    await sql(
-      `
-      INSERT INTO text_chunks (text_id, paragraph_index, page_number, content, embedding)
-      VALUES ($1, $2, $3, $4, $5::vector)
-    `,
-      [textId, chunks[i].paragraphIndex, chunks[i].estimatedPage, chunks[i].text, JSON.stringify(embeddings[i])],
+  if (existing.length > 0) {
+    const ex = existing[0] as Record<string, unknown>;
+    logger.info('Duplicate detected', { reqId, existingId: ex.id, title: ex.title });
+    return JSON.stringify(
+      {
+        status: 'duplicate',
+        message: `A document with a matching title and author already exists in the corpus.`,
+        existing_text_id: ex.id,
+        existing_title: ex.title,
+        existing_author: ex.author,
+        action: 'If this is a different edition or version, provide a distinct title to force ingestion.',
+      },
+      null,
+      2,
     );
   }
 
-  // Step 7: Track source file
+  // Step 4: Create canonical_texts record
+  const textRows = await sql(
+    `
+    INSERT INTO canonical_texts (author, title, year, text_type, tradition, page_count, format)
+    VALUES ($1, $2, $3, $4, $5, $6, 'pdf')
+    RETURNING id
+  `,
+    [author, title, year, textType, params.tradition || null, pageCount],
+  );
+  const textId = (textRows[0] as Record<string, unknown>).id as string;
+
+  // Step 5: Chunk text (with chapter/section detection)
+  const chunks = chunkText(text);
+  logger.info('Text chunked', { reqId, chunkCount: chunks.length });
+
+  // Step 6: Generate embeddings in batches
+  const chunkTexts = chunks.map((c) => c.text);
+  const embeddings = await generateEmbeddings(chunkTexts);
+
+  // Step 7: Insert chunks with embeddings and section metadata
+  for (let i = 0; i < chunks.length; i++) {
+    await sql(
+      `
+      INSERT INTO text_chunks (text_id, chapter_number, chapter_title, section_title, paragraph_index, page_number, content, embedding)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8::vector)
+    `,
+      [
+        textId,
+        chunks[i].chapterNumber || null,
+        chunks[i].chapterTitle || null,
+        chunks[i].sectionTitle || null,
+        chunks[i].paragraphIndex,
+        chunks[i].estimatedPage,
+        chunks[i].text,
+        JSON.stringify(embeddings[i]),
+      ],
+    );
+  }
+
+  // Step 8: Track source file
   await sql(
     `
     INSERT INTO source_files (filename, file_path, text_id, page_count, processing_status, processed_at)
@@ -94,7 +128,7 @@ ${text.slice(0, 2000)}`,
     [params.file_path.split('/').pop(), params.file_path, textId, pageCount],
   );
 
-  // Step 8: Link citation if provided
+  // Step 9: Link citation if provided
   if (params.citation_id) {
     await sql(
       `
@@ -113,7 +147,7 @@ ${text.slice(0, 2000)}`,
     );
   }
 
-  logger.info('PDF ingestion complete', { reqId, textId, chunks: chunks.length });
+  logger.info('PDF ingestion complete', { reqId, textId, chunks: chunks.length, ocrUsed });
 
   return JSON.stringify(
     {
@@ -126,6 +160,7 @@ ${text.slice(0, 2000)}`,
       page_count: pageCount,
       chunks_created: chunks.length,
       citation_linked: !!params.citation_id,
+      ocr_used: ocrUsed,
     },
     null,
     2,

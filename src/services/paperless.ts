@@ -92,6 +92,86 @@ export async function downloadFromPaperless(documentId: number): Promise<string 
   }
 }
 
+export interface PaperlessTag {
+  id: number;
+  name: string;
+}
+
+let tagCache: Map<number, string> | null = null;
+
+export async function getPaperlessTags(): Promise<Map<number, string>> {
+  if (tagCache) return tagCache;
+
+  const config = getConfig();
+  if (!config) return new Map();
+
+  try {
+    const tags = new Map<number, string>();
+    let url: string | null = `${config.baseUrl}/api/tags/?page_size=100`;
+
+    while (url) {
+      const res = await fetchWithRetry(url, { headers: authHeaders(config) });
+      if (!res.ok) {
+        logger.warn('Paperless tags fetch failed', { status: res.status });
+        break;
+      }
+      const data = (await res.json()) as { results: PaperlessTag[]; next: string | null };
+      for (const tag of data.results) {
+        tags.set(tag.id, tag.name);
+      }
+      url = data.next;
+    }
+
+    tagCache = tags;
+    return tags;
+  } catch (err) {
+    logger.error('Paperless tags fetch error', { error: String(err) });
+    return new Map();
+  }
+}
+
+export interface PaperlessListOptions {
+  limit?: number;
+  offset?: number;
+  ordering?: string;
+}
+
+export interface PaperlessListResult {
+  count: number;
+  results: PaperlessDocument[];
+}
+
+export async function listPaperlessDocuments(
+  options: PaperlessListOptions = {},
+): Promise<PaperlessListResult | null> {
+  const config = getConfig();
+  if (!config) return null;
+
+  const { limit = 100, offset = 0, ordering = '-added' } = options;
+
+  try {
+    const params = new URLSearchParams({
+      page_size: String(limit),
+      offset: String(offset),
+      ordering,
+    });
+
+    const url = `${config.baseUrl}/api/documents/?${params}`;
+    logger.info('Listing Paperless-ngx documents', { limit, offset });
+
+    const res = await fetchWithRetry(url, { headers: authHeaders(config) });
+    if (!res.ok) {
+      logger.warn('Paperless list failed', { status: res.status });
+      return null;
+    }
+
+    return (await res.json()) as PaperlessListResult;
+  } catch (err) {
+    logger.error('Paperless list error', { error: String(err) });
+    return null;
+  }
+}
+
 export async function uploadToPaperless(
   filePath: string,
   metadata: { title?: string; correspondent?: string; tags?: string[] },

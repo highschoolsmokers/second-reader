@@ -88,7 +88,14 @@ export interface VerificationResult {
   reason: string;
   checks: {
     existence?: 'verified' | 'not_found';
-    quotation?: { match: boolean; similarity: number; closest_passage?: string };
+    quotation?: {
+      match: boolean;
+      similarity: number;
+      confidence_grade?: 'exact' | 'high' | 'moderate' | 'low' | 'no_match';
+      closest_passage?: string;
+      closest_page?: number | null;
+      runner_up_similarity?: number | null;
+    };
     argument_fidelity?: { faithful: boolean; analysis: string };
   };
 }

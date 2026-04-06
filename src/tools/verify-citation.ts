@@ -31,12 +31,18 @@ export async function verifyCitation(params: VerifyCitationParams): Promise<stri
     });
   }
 
-  // Step 2: Query external APIs in sequence
-  let external: ExternalCitationResult | null = null;
+  // Step 2: Query external APIs in parallel
+  const [crossrefResult, semanticScholarResult, openAlexResult] = await Promise.allSettled([
+    queryCrossRef(params),
+    querySemanticScholar(params),
+    queryOpenAlex(params),
+  ]);
 
-  external = await queryCrossRef(params);
-  if (!external) external = await querySemanticScholar(params);
-  if (!external) external = await queryOpenAlex(params);
+  const external: ExternalCitationResult | null =
+    (crossrefResult.status === 'fulfilled' && crossrefResult.value) ||
+    (semanticScholarResult.status === 'fulfilled' && semanticScholarResult.value) ||
+    (openAlexResult.status === 'fulfilled' && openAlexResult.value) ||
+    null;
 
   if (!external) {
     return JSON.stringify({

@@ -196,24 +196,38 @@ async function verifySingleCitation(
     return result;
   }
 
-  // Quotation check
+  // Quotation check — graded confidence
   if (citation.quotation && citationRecord?.text_id) {
     const embedding = await generateEmbedding(citation.quotation);
     const matches = await sql(
       `
-      SELECT content, 1 - (embedding <=> $1::vector) AS similarity
+      SELECT content, page_number, 1 - (embedding <=> $1::vector) AS similarity
       FROM text_chunks WHERE text_id = $2
-      ORDER BY embedding <=> $1::vector LIMIT 1
+      ORDER BY embedding <=> $1::vector LIMIT 3
     `,
       [JSON.stringify(embedding), citationRecord.text_id],
     );
 
     if (matches.length) {
       const sim = matches[0].similarity as number;
+      const confidence_grade =
+        sim >= 0.95
+          ? 'exact'
+          : sim >= QUOTATION_SIMILARITY_THRESHOLD
+            ? 'high'
+            : sim >= 0.70
+              ? 'moderate'
+              : sim >= 0.55
+                ? 'low'
+                : 'no_match';
+
       result.checks.quotation = {
         match: sim >= QUOTATION_SIMILARITY_THRESHOLD,
         similarity: sim,
+        confidence_grade,
         closest_passage: matches[0].content as string,
+        closest_page: matches[0].page_number as number | null,
+        runner_up_similarity: matches.length > 1 ? (matches[1].similarity as number) : null,
       };
     }
   }
