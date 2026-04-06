@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  literary-truth-mcp:
+  literary-verity-mcp:
     build: .
     environment:
       - DATABASE_URL=${DATABASE_URL}

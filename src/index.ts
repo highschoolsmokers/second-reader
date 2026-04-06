@@ -23,7 +23,7 @@ import { verifyCitation } from './tools/verify-citation.js';
 import { verifyOutput } from './tools/verify-output.js';
 
 const server = new McpServer({
-  name: 'literary-truth-mcp-server',
+  name: 'literary-verity-mcp-server',
   version: '1.1.0',
 });
 
