@@ -4,7 +4,11 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import express from 'express';
 import { z } from 'zod';
 import {
+  AddClaimInput,
+  AnnotateInput,
+  ExportBibliographyInput,
   IngestPdfInput,
+  ListLibraryInput,
   LookupClaimsInput,
   ProcureSourceInput,
   QueryGraphInput,
@@ -14,7 +18,11 @@ import {
 } from './schemas/tools.js';
 import { getDb } from './services/db.js';
 import { logger } from './services/logger.js';
+import { addClaim } from './tools/add-claim.js';
+import { annotate } from './tools/annotate.js';
+import { exportBibliography } from './tools/export-bibliography.js';
 import { ingestPdf } from './tools/ingest-pdf.js';
+import { listLibrary } from './tools/list-library.js';
 import { lookupClaims } from './tools/lookup-claims.js';
 import { procureSource } from './tools/procure-source.js';
 import { queryGraph } from './tools/query-graph.js';
@@ -23,7 +31,7 @@ import { verifyCitation } from './tools/verify-citation.js';
 import { verifyOutput } from './tools/verify-output.js';
 
 const server = new McpServer({
-  name: 'literary-verity-mcp-server',
+  name: 'lit-verity-mcp-server',
   version: '1.1.0',
 });
 
@@ -35,19 +43,20 @@ server.registerTool(
   'lit_search_texts',
   {
     title: 'Search Indexed Texts',
-    description: `Semantic search over indexed literary works, theoretical texts, and critical articles. Returns matching passages with full bibliographic metadata and page numbers.
+    description: `Search indexed literary works, theoretical texts, and critical articles. Returns matching passages with full bibliographic metadata and page numbers.
 
 Use this to retrieve quotations and source passages — NEVER quote from memory. If a text is not in the corpus, this tool will tell you.
 
 Args:
   - query (string): Natural language search query
+  - mode (enum, optional): 'semantic' (vector similarity, default) | 'exact' (full-text keyword match) | 'hybrid' (weighted blend of both). Use 'exact' for specific phrases, 'semantic' for conceptual search.
   - author (string, optional): Filter by author name
   - title (string, optional): Filter by work title
   - text_type (enum, optional): 'literary_work' | 'theory' | 'criticism' | 'article' | 'dissertation'
   - tradition (string, optional): Filter by critical tradition
   - limit (number, optional): Max results, 1-20, default 5
 
-Returns: JSON array of matching passages with author, title, edition, year, chapter, page, passage text, and similarity score.`,
+Returns: JSON array of matching passages with author, title, edition, year, chapter, page, passage text, similarity score, and search mode used.`,
     inputSchema: SearchTextsInput,
     annotations: {
       readOnlyHint: true,
@@ -58,6 +67,33 @@ Returns: JSON array of matching passages with author, title, edition, year, chap
   },
   async (params) => {
     const result = await searchTexts(params);
+    return { content: [{ type: 'text', text: result }] };
+  },
+);
+
+server.registerTool(
+  'lit_list_library',
+  {
+    title: 'List Library Catalog',
+    description: `Returns a catalog of all documents in the writer's Paperless-ngx archive and/or the indexed corpus. Use this to discover what the writer already has access to at the start of a session.
+
+Args:
+  - source (enum, optional): 'all' | 'paperless' | 'corpus' (default: 'all')
+  - filter (object, optional): { author, title, tag, ingested_after }
+  - limit (number, optional): Max results, 1-500, default 100
+  - offset (number, optional): Skip entries for pagination, default 0
+
+Returns: JSON with total count and array of document entries including id, title, author, year, source location, indexing status, tags, and format.`,
+    inputSchema: ListLibraryInput,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  async (params) => {
+    const result = await listLibrary(params);
     return { content: [{ type: 'text', text: result }] };
   },
 );
@@ -251,6 +287,96 @@ Returns: JSON with status, source details, access links, or ingestion results.`,
   },
   async (params) => {
     const result = await procureSource(params);
+    return { content: [{ type: 'text', text: result }] };
+  },
+);
+
+server.registerTool(
+  'lit_add_claim',
+  {
+    title: 'Add Theoretical Claim',
+    description: `Record a verified theoretical claim into the claims database. Use this during research sessions to grow the claims graph as you verify arguments.
+
+Optionally creates a relationship edge to an existing claim in the same call.
+
+Args:
+  - theorist (string): Name of the theorist
+  - work_title (string): Title of the work
+  - text_id (UUID, optional): Corpus text ID if indexed
+  - year (number, optional): Publication year
+  - chapter (string, optional): Chapter title or number
+  - section (string, optional): Section title or number
+  - page_range (string, optional): Page range
+  - claim_summary (string): Summary of the claim (min 10 chars)
+  - source_passage (string, optional): Exact supporting passage
+  - keywords (string[], optional): Keywords for indexing
+  - tradition (string, optional): Critical tradition
+  - relation (object, optional): { target_claim_id, type, notes } to create a graph edge
+
+Returns: JSON with claim_id and creation status.`,
+    inputSchema: AddClaimInput,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  async (params) => {
+    const result = await addClaim(params);
+    return { content: [{ type: 'text', text: result }] };
+  },
+);
+
+server.registerTool(
+  'lit_export_bibliography',
+  {
+    title: 'Export Formatted Bibliography',
+    description: `Generate a formatted bibliography from verified citations. Supports MLA, Chicago, and APA styles.
+
+Args:
+  - citation_ids (UUID[], optional): Specific citations to include. If omitted, exports all verified.
+  - style (enum, optional): 'mla' | 'chicago' | 'apa' (default: 'chicago')
+  - session_id (string, optional): Export only citations from this verification session
+
+Returns: JSON with formatted bibliography text and per-entry data.`,
+    inputSchema: ExportBibliographyInput,
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  async (params) => {
+    const result = await exportBibliography(params);
+    return { content: [{ type: 'text', text: result }] };
+  },
+);
+
+server.registerTool(
+  'lit_annotate',
+  {
+    title: 'Annotate Passage',
+    description: `Create a bookmark/annotation on a specific text passage (text_chunk). Use this to mark key passages during research — "key argument for chapter 3", "contradicts earlier claim", etc.
+
+Args:
+  - chunk_id (UUID): The text_chunk ID to annotate
+  - note (string): The annotation text
+  - tag (string, optional): Category tag (e.g. "key-argument", "chapter-3", "needs-followup")
+  - session_id (string, optional): Session identifier for grouping
+
+Returns: JSON with annotation ID, source context, and passage preview.`,
+    inputSchema: AnnotateInput,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  async (params) => {
+    const result = await annotate(params);
     return { content: [{ type: 'text', text: result }] };
   },
 );
