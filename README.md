@@ -1,4 +1,4 @@
-# Literary Verity MCP Server
+# Lit Verity MCP Server
 
 An MCP (Model Context Protocol) server that provides truth-grounding tools for AI agents working in academic literary criticism. It prevents hallucinated citations, fabricated quotations, distorted arguments, and misattributions by giving the agent verifiable access to a curated corpus of primary texts, theoretical claims, and bibliographic records.
 
@@ -19,11 +19,13 @@ These errors are difficult to catch because they *sound* authoritative. A studen
 
 This server interposes a **truth model** between the AI agent and its output. Every citation, quotation, argument characterization, and theoretical relationship passes through verification tools backed by:
 
-- A **semantic search corpus** of indexed literary works, theoretical texts, and critical articles (with full-text embeddings via Voyage AI)
-- A **claims database** of structured records documenting what theorists actually argued, with source passages
+- A **semantic search corpus** of indexed literary works, theoretical texts, and critical articles (with full-text embeddings via Voyage AI), supporting semantic, exact keyword, and hybrid search modes
+- A **claims database** of structured records documenting what theorists actually argued, with source passages — growable during research sessions via the agent itself
 - A **relationship graph** mapping how theoretical positions relate to each other (critiques, extends, responds to, misreads, etc.)
-- **Bibliographic verification** against CrossRef, Semantic Scholar, and OpenAlex APIs
-- A **post-generation verification pipeline** that audits the agent's own output before it reaches the user
+- **Bibliographic verification** against CrossRef, Semantic Scholar, and OpenAlex APIs (queried in parallel)
+- A **post-generation verification pipeline** that audits the agent's own output with graded confidence scoring
+- **Bibliography export** in MLA, Chicago, and APA formats from verified citations
+- **Passage annotation** for bookmarking key passages during research sessions
 
 The agent is instructed to tag every claim with a confidence level: `VERIFIED`, `PLAUSIBLE`, `UNVERIFIED`, `INFERENCE`, or `FLAGGED`.
 
@@ -36,25 +38,29 @@ The agent is instructed to tag every claim with a confidence level: `VERIFIED`, 
 +----------------------------+----------------------------+
                              |  MCP protocol (stdio or HTTP)
 +----------------------------v----------------------------+
-|            literary-verity-mcp-server                     |
+|            lit-verity-mcp-server                         |
 |                                                          |
 |  Tools:                                                  |
-|    lit_search_texts      - semantic search corpus         |
-|    lit_lookup_claims     - query claims database          |
-|    lit_query_graph       - traverse claim relations       |
-|    lit_verify_citation   - bibliographic verification     |
-|    lit_verify_output     - post-generation audit          |
-|    lit_ingest_pdf        - ingest PDF into corpus         |
-|    lit_procure_source    - find/download/ingest sources   |
+|    lit_search_texts        - semantic/exact/hybrid search |
+|    lit_list_library        - catalog corpus + Paperless   |
+|    lit_lookup_claims       - query claims database        |
+|    lit_query_graph         - traverse claim relations     |
+|    lit_add_claim           - record verified claims       |
+|    lit_verify_citation     - bibliographic verification   |
+|    lit_verify_output       - post-generation audit        |
+|    lit_ingest_pdf          - ingest PDF (with OCR)        |
+|    lit_procure_source      - find/download/ingest sources |
+|    lit_export_bibliography - formatted works cited        |
+|    lit_annotate            - bookmark passages            |
 |                                                          |
 |  Prompts:                                                |
-|    analyze-argument      - guided argument analysis       |
-|    compare-theorists     - compare two theorists          |
-|    verify-essay          - verify a completed essay       |
+|    analyze-argument        - guided argument analysis     |
+|    compare-theorists       - compare two theorists        |
+|    verify-essay            - verify a completed essay     |
 |                                                          |
 |  Resources:                                              |
-|    lit://stats           - corpus coverage stats          |
-|    lit://procurement     - pending source requests        |
+|    lit://stats             - corpus coverage stats        |
+|    lit://procurement       - pending source requests      |
 +----------------------------+----------------------------+
                              |
 +----------------------------v----------------------------+
@@ -68,6 +74,7 @@ The agent is instructed to tag every claim with a confidence level: `VERIFIED`, 
 |  source_files       - uploaded PDF tracking              |
 |  verification_log   - audit trail                        |
 |  procurement_queue  - sources needed                     |
+|  annotations        - passage bookmarks and notes        |
 +----------------------------------------------------------+
 ```
 
@@ -75,11 +82,24 @@ The agent is instructed to tag every claim with a confidence level: `VERIFIED`, 
 
 ### `lit_search_texts`
 
-Semantic search over indexed literary works, theoretical texts, and critical articles. Returns matching passages with full bibliographic metadata (author, title, edition, year, chapter, page number) and a similarity score.
+Search indexed literary works, theoretical texts, and critical articles. Returns matching passages with full bibliographic metadata (author, title, edition, year, chapter, section, page number) and a similarity score.
+
+Supports three search modes:
+- **`semantic`** (default) — vector similarity via Voyage AI embeddings. Best for conceptual searches ("the relationship between mourning and melancholia").
+- **`exact`** — full-text keyword matching via PostgreSQL `tsvector`. Best for specific phrases ("always already") or technical terms.
+- **`hybrid`** — weighted blend of both (0.7 semantic + 0.3 keyword). Best when you want conceptual relevance but also need keyword presence.
 
 The agent is instructed: *NEVER quote from memory. Always use this tool. If a text is not in the corpus, say so explicitly.*
 
-**Parameters:** `query` (required), `author`, `title`, `text_type`, `tradition`, `limit`
+**Parameters:** `query` (required), `mode`, `author`, `title`, `text_type`, `tradition`, `limit`
+
+### `lit_list_library`
+
+Returns a catalog of all documents in the writer's Paperless-ngx archive and/or the indexed corpus. Merges both sources, deduplicating by normalized title+author. Use this to discover what the writer already has access to at the start of a session.
+
+Documents from Paperless-ngx that are not yet indexed in the corpus appear with `full_text_indexed: false`, prompting the agent to offer ingestion.
+
+**Parameters:** `source`, `filter` (object: `author`, `title`, `tag`, `ingested_after`), `limit`, `offset`
 
 ### `lit_lookup_claims`
 
@@ -97,9 +117,17 @@ The agent is instructed: *If no edge exists in the graph, note the relationship 
 
 **Parameters:** `claim_id`, `theorist`, `relation_type`, `direction`
 
+### `lit_add_claim`
+
+Records a verified theoretical claim into the claims database during a research session. This lets the claims graph grow organically as the agent verifies arguments, rather than requiring manual curation through seed scripts.
+
+Optionally creates a relationship edge to an existing claim in the same call, keeping the graph connected as new claims are added.
+
+**Parameters:** `theorist` (required), `work_title` (required), `claim_summary` (required), `text_id`, `year`, `chapter`, `section`, `page_range`, `source_passage`, `keywords`, `tradition`, `relation` (object: `target_claim_id`, `type`, `notes`)
+
 ### `lit_verify_citation`
 
-Verifies that a scholarly citation actually exists. Checks the local cache first, then queries CrossRef, Semantic Scholar, and OpenAlex. Caches verified results and queues unindexed sources for procurement.
+Verifies that a scholarly citation actually exists. Checks the local cache first, then queries CrossRef, Semantic Scholar, and OpenAlex **in parallel** for faster verification. Caches verified results and queues unindexed sources for procurement.
 
 The agent is instructed: *Verify EVERY citation before including it. If verification fails, DO NOT include it -- mark it as FLAGGED.*
 
@@ -109,11 +137,25 @@ The agent is instructed: *Verify EVERY citation before including it. If verifica
 
 Post-generation verification pipeline. Extracts all citations, quotations, and argument characterizations from the agent's output using Claude, then checks each against the truth model. Returns per-claim confidence scores and a summary. Processes citations with bounded concurrency (5 parallel) and caps at `MAX_CITATIONS_PER_VERIFY` (default 15) to control cost.
 
+Quotation matching now returns **graded confidence** instead of a binary match:
+- **`exact`** (>= 0.95) — near-perfect match to indexed passage
+- **`high`** (>= 0.85) — strong match, reliable for citation
+- **`moderate`** (>= 0.70) — partial match, may be a paraphrase or different edition
+- **`low`** (>= 0.55) — weak match, likely a different passage
+- **`no_match`** (< 0.55) — no corresponding passage found
+
+Also returns the runner-up similarity score and closest page number for context.
+
 **Parameters:** `agent_output`, `session_id`
 
 ### `lit_ingest_pdf`
 
-Ingests a PDF file into the indexed corpus during a research session. Extracts text, chunks it, generates embeddings in batches, and creates a `canonical_texts` record. Optionally links to an existing citation record, closing the procurement loop without leaving the MCP client.
+Ingests a PDF file into the indexed corpus during a research session. Extracts text, chunks it with chapter/section detection, generates embeddings in batches, and creates a `canonical_texts` record. Optionally links to an existing citation record, closing the procurement loop without leaving the MCP client.
+
+Key features:
+- **OCR fallback** — if the PDF is scanned/image-based and text extraction yields little content, automatically falls back to OCR via tesseract.js. Optionally accelerated with `pdftoppm` (poppler) if available.
+- **Chapter/section detection** — recognizes chapter headings, section headings, numbered headings, and all-caps titles. Chunks preserve structural context (chapter number, chapter title, section title) for richer search results.
+- **Deduplication** — checks for existing documents with matching title+author before ingesting. Returns the existing record if a duplicate is found, preventing inflated search results from duplicate chunks.
 
 **Parameters:** `file_path` (required), `author`, `title`, `year`, `text_type`, `tradition`, `citation_id`
 
@@ -145,6 +187,29 @@ Agent → calls lit_procure_source(file_path: "~/Downloads/sedgwick-touching-fee
 → continues with VERIFIED quotation check
 ```
 
+### `lit_export_bibliography`
+
+Generates a formatted bibliography from verified citations. Supports MLA, Chicago (default), and APA citation styles. Can export all verified citations, a specific set by ID, or only those referenced in a particular verification session.
+
+**Parameters:** `citation_ids`, `style`, `session_id`
+
+**Example output (Chicago):**
+```
+Bibliography
+
+Sedgwick, Eve Kosofsky. "Paranoid Reading and Reparative Reading." *Touching Feeling* 2003.
+
+Butler, Judith. *Gender Trouble*. Routledge, 1990. https://doi.org/10.4324/9780203824979.
+```
+
+### `lit_annotate`
+
+Creates a bookmark/annotation on a specific text passage (text_chunk). Use this to mark key passages during research — "key argument for chapter 3", "contradicts earlier claim", etc.
+
+Annotations are tagged and grouped by session, so the agent can retrieve all bookmarked passages for a given topic or research session.
+
+**Parameters:** `chunk_id` (required), `note` (required), `tag`, `session_id`
+
 ## Prompts
 
 The server provides guided workflow prompts that compose multiple tool calls into structured research tasks:
@@ -174,8 +239,8 @@ The server provides guided workflow prompts that compose multiple tool calls int
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/literary-verity-mcp-server.git
-cd literary-verity-mcp-server
+git clone https://github.com/your-username/lit-verity-mcp-server.git
+cd lit-verity-mcp-server
 npm install
 ```
 
@@ -216,12 +281,16 @@ PAPERLESS_TOKEN=your-paperless-api-token
 npm run setup-db
 ```
 
-This creates all 8 tables, indexes (including HNSW vector index), and the pgvector extension. Safe to run multiple times (skips existing objects).
+This creates all 9 tables (including `annotations`), indexes (including HNSW vector index), and the pgvector extension. Safe to run multiple times (skips existing objects).
 
-If upgrading from a previous version that used IVFFlat indexing, run the migration:
+If upgrading from a previous version, run the migrations:
 
 ```bash
+# If upgrading from IVFFlat indexing
 psql $DATABASE_URL -f sql/migrate-001-hnsw.sql
+
+# If upgrading from before annotations/library features
+psql $DATABASE_URL -f sql/migrate-002-annotations.sql
 ```
 
 ### Build and Test
@@ -241,7 +310,7 @@ Add to your project's `.mcp.json`:
     "literary-verity": {
       "command": "node",
       "args": ["dist/index.js"],
-      "cwd": "/path/to/literary-verity-mcp-server",
+      "cwd": "/path/to/lit-verity-mcp-server",
       "env": {
         "DATABASE_URL": "postgresql://...",
         "ANTHROPIC_API_KEY": "sk-ant-...",
@@ -252,7 +321,7 @@ Add to your project's `.mcp.json`:
 }
 ```
 
-Restart Claude Code. The seven `lit_*` tools and three prompts will appear.
+Restart Claude Code. The eleven `lit_*` tools and three prompts will appear.
 
 ### Docker
 
@@ -269,8 +338,8 @@ For Claude Code with Docker:
   "mcpServers": {
     "literary-verity": {
       "command": "docker",
-      "args": ["compose", "run", "--rm", "-i", "literary-verity-mcp"],
-      "cwd": "/path/to/literary-verity-mcp-server"
+      "args": ["compose", "run", "--rm", "-i", "lit-verity-mcp"],
+      "cwd": "/path/to/lit-verity-mcp-server"
     }
   }
 }
@@ -283,7 +352,7 @@ For Claude Code with Docker:
 You can ingest PDFs two ways:
 
 **Via MCP tool** (during a research session):
-The `lit_ingest_pdf` tool lets you add sources conversationally without leaving your MCP client. Just provide the file path and optional metadata.
+The `lit_ingest_pdf` tool lets you add sources conversationally without leaving your MCP client. Just provide the file path and optional metadata. Scanned PDFs are handled automatically via OCR fallback, and duplicate documents are detected before ingestion.
 
 **Via CLI script** (batch ingestion):
 ```bash
@@ -306,17 +375,22 @@ npx tsx scripts/ingest.ts ./path/to/file.pdf \
 | `--suggest-claims` | Use Claude to suggest key claims for review |
 
 The ingestion pipeline:
-1. Extracts text from the PDF
+1. Extracts text from the PDF (with OCR fallback for scanned documents)
 2. Extracts metadata (author, title, year) using Claude if not provided
-3. Creates a `canonical_texts` record
-4. Chunks the text into paragraphs with overlap
-5. Generates Voyage AI embeddings for each chunk
-6. Optionally suggests 5-10 key claims for human review
+3. Checks for duplicate documents (matching title + author)
+4. Creates a `canonical_texts` record
+5. Chunks the text into paragraphs with overlap, detecting chapter/section boundaries
+6. Generates Voyage AI embeddings for each chunk
+7. Optionally suggests 5-10 key claims for human review
 
 ### Seeding Claims
 
-From a JSON file:
+Claims can be added in two ways:
 
+**Via MCP tool** (during a research session):
+The `lit_add_claim` tool lets the agent record verified claims as it discovers them. This is the recommended approach — the claims database grows naturally during research, with each claim grounded in a just-verified source passage. Relationship edges can be created in the same call.
+
+**Via CLI script** (batch seeding):
 ```bash
 npx tsx scripts/seed-claims.ts ./claims.json
 ```
@@ -386,9 +460,11 @@ Every source you index makes future queries more accurate, and every source arch
 
 The server includes a self-contained [Paperless-ngx](https://docs.paperless-ngx.com/) client — no additional MCP servers needed. When configured, it provides:
 
+- **Library catalog:** `lit_list_library` merges your Paperless-ngx archive with the indexed corpus, showing which documents are available and which need indexing.
 - **Automatic lookup:** Before prompting you to download a paywalled source, the agent checks your Paperless-ngx archive. If the document is there, it downloads and ingests without asking.
 - **Automatic archival:** When you provide a PDF for procurement, it's archived to Paperless-ngx so future sessions can find it instantly.
-- **Graceful degradation:** If `PAPERLESS_URL` and `PAPERLESS_TOKEN` are not set, the procurement tool works identically — it just skips the Paperless steps.
+- **Tag resolution:** Paperless-ngx tag IDs are resolved to human-readable names in library listings.
+- **Graceful degradation:** If `PAPERLESS_URL` and `PAPERLESS_TOKEN` are not set, all tools work identically — they just skip the Paperless steps.
 
 ### Setup
 
@@ -406,7 +482,7 @@ PAPERLESS_URL=http://localhost:8000   # or your Paperless-ngx host
 PAPERLESS_TOKEN=your-api-token
 ```
 
-3. That's it. The `lit_procure_source` tool will automatically use Paperless-ngx for search and archival.
+3. That's it. The `lit_procure_source` and `lit_list_library` tools will automatically use Paperless-ngx for search, listing, and archival.
 
 ## Using with Literary Research Plugin
 
@@ -438,6 +514,7 @@ CRITICAL RULES:
 
 1. NEVER quote a literary text from memory. Always use lit_search_texts to
    retrieve verified passages. If a text is not in the corpus, say so explicitly.
+   Use mode: "exact" for specific phrases and mode: "semantic" for concepts.
 
 2. NEVER cite a scholarly source without verifying it exists using
    lit_verify_citation. If verification fails, say "I cannot verify this
@@ -465,6 +542,15 @@ CRITICAL RULES:
    - INFERENCE: your reasoning, not directly sourced
    - FLAGGED: failed a verification check
 
+8. When you verify a claim for the first time, use lit_add_claim to record it
+   in the claims database so future sessions benefit from your work.
+
+9. Use lit_annotate to bookmark key passages you discover during research.
+   Tag them by topic or chapter so they can be retrieved later.
+
+10. At the end of a research session, use lit_export_bibliography to generate
+    a formatted works-cited page from the citations you verified.
+
 You may reason, synthesize, and make arguments freely -- but every factual
 claim must be grounded through tool use. Distinguish clearly between what
 you have verified and what you are inferring.
@@ -488,7 +574,7 @@ The `evals/` directory contains test cases designed to catch common failure mode
 ## Project Structure
 
 ```
-literary-verity-mcp-server/
+lit-verity-mcp-server/
 ├── package.json
 ├── tsconfig.json
 ├── tsconfig.scripts.json        # type-checking for scripts/
@@ -497,14 +583,15 @@ literary-verity-mcp-server/
 ├── Dockerfile                   # multi-stage build
 ├── docker-compose.yml
 ├── sql/
-│   ├── schema.sql               # full database schema (HNSW index)
-│   └── migrate-001-hnsw.sql     # migration: IVFFlat → HNSW
+│   ├── schema.sql               # full database schema (9 tables, HNSW index)
+│   ├── migrate-001-hnsw.sql     # migration: IVFFlat → HNSW
+│   └── migrate-002-annotations.sql  # migration: annotations table + canonical_texts columns
 ├── src/
 │   ├── index.ts                 # MCP server entry + transport + prompts
 │   ├── types.ts                 # TypeScript interfaces
 │   ├── constants.ts             # thresholds and config
 │   ├── schemas/
-│   │   └── tools.ts             # Zod input schemas
+│   │   └── tools.ts             # Zod input schemas (all 11 tools)
 │   ├── services/
 │   │   ├── db.ts                # Neon Postgres connection + health check
 │   │   ├── embeddings.ts        # Voyage AI embeddings (batch support)
@@ -514,19 +601,23 @@ literary-verity-mcp-server/
 │   │   ├── semantic-scholar.ts  # Semantic Scholar API client
 │   │   ├── openalex.ts          # OpenAlex API client
 │   │   ├── claude.ts            # Claude API client (configurable model)
-│   │   ├── pdf.ts               # PDF text extraction + chunking
-│   │   ├── paperless.ts         # Paperless-ngx API client
+│   │   ├── pdf.ts               # PDF text extraction + OCR fallback + smart chunking
+│   │   ├── paperless.ts         # Paperless-ngx API client (search, list, download, upload, tags)
 │   │   ├── fetch-retry.test.ts  # tests: retry logic
 │   │   ├── logger.test.ts       # tests: logger
 │   │   └── pdf.test.ts          # tests: chunking
 │   └── tools/
-│       ├── search-texts.ts      # lit_search_texts
+│       ├── search-texts.ts      # lit_search_texts (semantic/exact/hybrid)
+│       ├── list-library.ts      # lit_list_library
 │       ├── lookup-claims.ts     # lit_lookup_claims
 │       ├── query-graph.ts       # lit_query_graph
-│       ├── verify-citation.ts   # lit_verify_citation
-│       ├── verify-output.ts     # lit_verify_output (bounded concurrency)
-│       ├── ingest-pdf.ts        # lit_ingest_pdf
-│       └── procure-source.ts    # lit_procure_source
+│       ├── add-claim.ts         # lit_add_claim
+│       ├── verify-citation.ts   # lit_verify_citation (parallel API queries)
+│       ├── verify-output.ts     # lit_verify_output (graded confidence)
+│       ├── ingest-pdf.ts        # lit_ingest_pdf (OCR, dedup, section detection)
+│       ├── procure-source.ts    # lit_procure_source
+│       ├── export-bibliography.ts # lit_export_bibliography (MLA/Chicago/APA)
+│       └── annotate.ts          # lit_annotate
 ├── scripts/
 │   ├── setup-db.ts              # create database schema
 │   ├── ingest.ts                # ingest a PDF into the corpus
@@ -549,19 +640,21 @@ literary-verity-mcp-server/
 | Verification | [Claude](https://anthropic.com) (argument fidelity checks) |
 | Bibliographic APIs | [CrossRef](https://www.crossref.org/documentation/retrieve-metadata/rest-api/), [Semantic Scholar](https://api.semanticscholar.org/), [OpenAlex](https://docs.openalex.org/) |
 | Validation | [Zod](https://zod.dev) |
-| PDF extraction | pdf-parse |
+| PDF extraction | pdf-parse + [tesseract.js](https://github.com/naptha/tesseract.js) (OCR fallback) |
 | Document archive | [Paperless-ngx](https://docs.paperless-ngx.com/) (optional) |
 | Testing | [Vitest](https://vitest.dev) |
 
 ## Design Principles
 
-**The claims database is the moat.** The embedding search and bibliographic APIs are infrastructure. Your expertise as a scholar -- the careful, precise documentation of what theorists actually argued, in what context, with what nuances -- is the irreplaceable input. The more carefully you build the claims database, the better argument fidelity checks work.
+**The claims database is the moat.** The embedding search and bibliographic APIs are infrastructure. Your expertise as a scholar -- the careful, precise documentation of what theorists actually argued, in what context, with what nuances -- is the irreplaceable input. The more carefully you build the claims database, the better argument fidelity checks work. With `lit_add_claim`, the agent itself contributes to this database during research sessions.
 
 **Start narrow.** Pick one critical tradition or subfield. Build the claims database for that slice. Get the pipeline working end-to-end. Then expand. A small, high-quality corpus will outperform a large, shallow one.
 
 **Trust but verify.** The agent can reason, synthesize, and make original arguments freely. The truth model doesn't constrain thinking -- it constrains *factual claims*. The distinction between VERIFIED and INFERENCE is the key output.
 
 **The procurement queue creates a flywheel.** Every conversation surfaces sources the corpus needs. Every source you ingest makes future conversations more accurate. Over time, the system converges toward comprehensive coverage of your field.
+
+**Annotations create continuity.** Passages bookmarked in one session are available in the next. The agent builds a curated set of key passages across sessions, reducing re-search and keeping research threads connected.
 
 ## License
 
