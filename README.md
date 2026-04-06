@@ -1,4 +1,4 @@
-# Literary Truth MCP Server
+# Literary Verity MCP Server
 
 An MCP (Model Context Protocol) server that provides truth-grounding tools for AI agents working in academic literary criticism. It prevents hallucinated citations, fabricated quotations, distorted arguments, and misattributions by giving the agent verifiable access to a curated corpus of primary texts, theoretical claims, and bibliographic records.
 
@@ -36,7 +36,7 @@ The agent is instructed to tag every claim with a confidence level: `VERIFIED`, 
 +----------------------------+----------------------------+
                              |  MCP protocol (stdio or HTTP)
 +----------------------------v----------------------------+
-|            literary-truth-mcp-server                     |
+|            literary-verity-mcp-server                     |
 |                                                          |
 |  Tools:                                                  |
 |    lit_search_texts      - semantic search corpus         |
@@ -174,8 +174,8 @@ The server provides guided workflow prompts that compose multiple tool calls int
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/literary-truth-mcp-server.git
-cd literary-truth-mcp-server
+git clone https://github.com/your-username/literary-verity-mcp-server.git
+cd literary-verity-mcp-server
 npm install
 ```
 
@@ -238,10 +238,10 @@ Add to your project's `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "literary-truth": {
+    "literary-verity": {
       "command": "node",
       "args": ["dist/index.js"],
-      "cwd": "/path/to/literary-truth-mcp-server",
+      "cwd": "/path/to/literary-verity-mcp-server",
       "env": {
         "DATABASE_URL": "postgresql://...",
         "ANTHROPIC_API_KEY": "sk-ant-...",
@@ -267,10 +267,10 @@ For Claude Code with Docker:
 ```json
 {
   "mcpServers": {
-    "literary-truth": {
+    "literary-verity": {
       "command": "docker",
-      "args": ["compose", "run", "--rm", "-i", "literary-truth-mcp"],
-      "cwd": "/path/to/literary-truth-mcp-server"
+      "args": ["compose", "run", "--rm", "-i", "literary-verity-mcp"],
+      "cwd": "/path/to/literary-verity-mcp-server"
     }
   }
 }
@@ -488,7 +488,7 @@ The `evals/` directory contains test cases designed to catch common failure mode
 ## Project Structure
 
 ```
-literary-truth-mcp-server/
+literary-verity-mcp-server/
 ├── package.json
 ├── tsconfig.json
 ├── tsconfig.scripts.json        # type-checking for scripts/
