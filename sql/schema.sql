@@ -17,6 +17,8 @@ CREATE TABLE canonical_texts (
     'literary_work', 'theory', 'criticism', 'article', 'dissertation'
   )),
   tradition TEXT,
+  page_count INTEGER,
+  format TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -199,3 +201,19 @@ CREATE TABLE procurement_queue (
 );
 
 CREATE INDEX idx_procurement_queue_status ON procurement_queue(status);
+
+-- ============================================================
+-- ANNOTATIONS (Passage bookmarks and notes)
+-- ============================================================
+CREATE TABLE annotations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  chunk_id UUID NOT NULL REFERENCES text_chunks(id) ON DELETE CASCADE,
+  note TEXT NOT NULL,
+  tag TEXT,
+  session_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_annotations_chunk_id ON annotations(chunk_id);
+CREATE INDEX idx_annotations_tag ON annotations(tag);
+CREATE INDEX idx_annotations_session ON annotations(session_id);

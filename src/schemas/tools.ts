@@ -6,6 +6,12 @@ export const SearchTextsInput = z
       .string()
       .min(2, 'Query must be at least 2 characters')
       .describe('Natural language search query for passage or concept'),
+    mode: z
+      .enum(['semantic', 'exact', 'hybrid'])
+      .default('semantic')
+      .describe(
+        "Search mode. 'semantic' uses vector similarity (default). 'exact' uses full-text keyword matching. 'hybrid' combines both, ranking by a weighted blend.",
+      ),
     author: z.string().optional().describe('Filter by author name'),
     title: z.string().optional().describe('Filter by work title'),
     text_type: z
@@ -95,6 +101,96 @@ export const ProcureSourceInput = z
       .boolean()
       .optional()
       .describe('Whether to archive the PDF to Paperless-ngx (default: true if configured)'),
+  })
+  .strict();
+
+export const AddClaimInput = z
+  .object({
+    theorist: z.string().describe('Name of the theorist'),
+    work_title: z.string().describe('Title of the work where the claim is made'),
+    text_id: z.string().uuid().optional().describe('UUID of the canonical text in the corpus, if indexed'),
+    year: z.number().int().optional().describe('Publication year'),
+    chapter: z.string().optional().describe('Chapter title or number'),
+    section: z.string().optional().describe('Section title or number'),
+    page_range: z.string().optional().describe('Page range (e.g. "45-67")'),
+    claim_summary: z.string().min(10).describe('Summary of the theoretical claim or argument'),
+    source_passage: z.string().optional().describe('The exact source passage supporting this claim'),
+    keywords: z.array(z.string()).default([]).describe('Keywords for indexing'),
+    tradition: z.string().optional().describe('Critical tradition (e.g. deconstruction, queer theory)'),
+    relation: z
+      .object({
+        target_claim_id: z.string().uuid().describe('UUID of the related claim'),
+        type: z
+          .enum([
+            'critiques',
+            'extends',
+            'responds_to',
+            'misreads',
+            'applies',
+            'historicizes',
+            'synthesizes',
+            'contradicts',
+            'contextualizes',
+          ])
+          .describe('Type of relationship from this claim to the target'),
+        notes: z.string().optional().describe('Notes about the relationship'),
+      })
+      .optional()
+      .describe('Optionally create a relationship edge to an existing claim in the same call'),
+  })
+  .strict();
+
+export const ExportBibliographyInput = z
+  .object({
+    citation_ids: z
+      .array(z.string().uuid())
+      .optional()
+      .describe('Specific citation IDs to include. If omitted, exports all verified citations.'),
+    style: z
+      .enum(['mla', 'chicago', 'apa'])
+      .default('chicago')
+      .describe('Citation style format'),
+    session_id: z
+      .string()
+      .optional()
+      .describe('If provided, exports only citations referenced in this session\'s verification log'),
+  })
+  .strict();
+
+export const AnnotateInput = z
+  .object({
+    chunk_id: z.string().uuid().describe('UUID of the text_chunk to annotate'),
+    note: z.string().min(1).describe('The annotation text'),
+    tag: z
+      .string()
+      .optional()
+      .describe('A tag to categorize the annotation (e.g. "key-argument", "chapter-3", "needs-followup")'),
+    session_id: z.string().optional().describe('Session identifier for grouping annotations'),
+  })
+  .strict();
+
+export const ListLibraryInput = z
+  .object({
+    source: z
+      .enum(['all', 'paperless', 'corpus'])
+      .default('all')
+      .describe(
+        "Which catalog to return. 'paperless' returns only Paperless-ngx archived documents. 'corpus' returns only indexed corpus documents. 'all' merges both, deduplicating by title+author.",
+      ),
+    filter: z
+      .object({
+        author: z.string().optional().describe('Filter by author name (partial match, case-insensitive)'),
+        title: z.string().optional().describe('Filter by title (partial match, case-insensitive)'),
+        tag: z.string().optional().describe('Filter by Paperless-ngx tag (exact match)'),
+        ingested_after: z
+          .string()
+          .optional()
+          .describe('Only return documents ingested after this date (YYYY-MM-DD)'),
+      })
+      .optional()
+      .describe('Optional filters to narrow the catalog'),
+    limit: z.number().int().min(1).max(500).default(100).describe('Maximum number of entries to return'),
+    offset: z.number().int().min(0).default(0).describe('Skip this many entries (for pagination)'),
   })
   .strict();
 
