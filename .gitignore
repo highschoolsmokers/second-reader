@@ -4,3 +4,25 @@ dist/
 .env
 .env*.local
 *.tsbuildinfo
+
+# Local MCP config contains secrets (DATABASE_URL, API keys).
+# Commit .mcp.json.example as the shareable template instead.
+.mcp.json
+
+# macOS
+.DS_Store
+
+# Obsidian vault metadata (local UI state)
+.obsidian/
+
+# Local Claude Code per-user settings
+.claude/settings.local.json
+
+# Essay source PDFs — canonical copies live in Paperless-ngx + lit-verity corpus.
+# Working copies in essays/*/sources/ shouldn't be committed.
+essays/**/sources/*.pdf
+essays/**/sources/*.epub
+
+# Plugin build artifacts
+/tmp/
+*.plugin

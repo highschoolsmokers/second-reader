@@ -23,5 +23,8 @@ COPY sql/ ./sql/
 
 ENV NODE_ENV=production
 ENV TRANSPORT=stdio
+ENV PORT=3000
+
+EXPOSE 3000
 
 ENTRYPOINT ["node", "dist/index.js"]

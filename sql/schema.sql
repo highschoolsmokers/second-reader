@@ -17,6 +17,7 @@ CREATE TABLE canonical_texts (
     'literary_work', 'theory', 'criticism', 'article', 'dissertation'
   )),
   tradition TEXT,
+  translator TEXT,
   page_count INTEGER,
   format TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
