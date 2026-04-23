@@ -1,5 +1,5 @@
 // Load .env before anything else so downstream imports see the values.
-// Priority: (1) LIT_VERITY_ENV_PATH if set, (2) ~/workspace/lit-verity-mcp/.env,
+// Priority: (1) SECOND_READER_ENV_PATH if set, (2) ~/workspace/second-reader/.env,
 // (3) ./.env in the current working directory. Silent if none exist — callers
 // that set the env vars via their shell or process manager still work.
 import 'dotenv/config';
@@ -7,8 +7,10 @@ import dotenv from 'dotenv';
 import os from 'node:os';
 import path from 'node:path';
 const envCandidates = [
-  process.env.LIT_VERITY_ENV_PATH,
-  path.join(os.homedir(), 'workspace/lit-verity-mcp/.env'),
+  process.env.SECOND_READER_ENV_PATH,
+  process.env.LIT_VERITY_ENV_PATH, // legacy name, kept for back-compat
+  path.join(os.homedir(), 'workspace/second-reader/.env'),
+  path.join(os.homedir(), 'workspace/lit-verity-mcp/.env'), // legacy path
 ].filter(Boolean) as string[];
 for (const p of envCandidates) {
   dotenv.config({ path: p, override: false });
@@ -47,7 +49,7 @@ import { verifyCitation } from './tools/verify-citation.js';
 import { verifyOutput } from './tools/verify-output.js';
 
 const server = new McpServer({
-  name: 'lit-verity-mcp-server',
+  name: 'second-reader',
   version: '1.1.0',
 });
 
@@ -570,7 +572,7 @@ function setupGracefulShutdown(): void {
 async function runStdio(): Promise<void> {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  logger.info('Literary Truth MCP server running on stdio');
+  logger.info('Second Reader running on stdio');
 }
 
 async function runHTTP(): Promise<void> {
@@ -603,11 +605,11 @@ async function runHTTP(): Promise<void> {
     const cert = readFileSync(certPath);
     const key = readFileSync(keyPath);
     httpServer = createServer({ cert, key }, app).listen(port, () => {
-      logger.info(`Literary Truth MCP server running on https://localhost:${port}/mcp`);
+      logger.info(`Second Reader running on https://localhost:${port}/mcp`);
     }) as unknown as ReturnType<ReturnType<typeof express>['listen']>;
   } else {
     httpServer = app.listen(port, () => {
-      logger.info(`Literary Truth MCP server running on http://localhost:${port}/mcp`);
+      logger.info(`Second Reader running on http://localhost:${port}/mcp`);
     });
   }
 }

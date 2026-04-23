@@ -1,6 +1,6 @@
 # Procurement Ledger — Maxwell × Bruner
 
-Tracks which Ring 1–3 sources have been acquired, from where, and whether they are ingested into the lit-verity corpus. Updated by `/procure-sources`.
+Tracks which Ring 1–3 sources have been acquired, from where, and whether they are ingested into the Second Reader corpus. Updated by `/procure-sources`.
 
 **Last procurement pass**: 2026-04-23 — tiering + URL discovery complete.
 
@@ -38,7 +38,7 @@ Tracks which Ring 1–3 sources have been acquired, from where, and whether they
 
 ## Corpus status
 
-| # | Title (short) | In lit-verity? | text_id | Ingested date |
+| # | Title (short) | In second-reader? | text_id | Ingested date |
 |---|---------------|----------------|---------|---------------|
 | — | (none yet) | — | — | — |
 
@@ -60,7 +60,7 @@ Tracks which Ring 1–3 sources have been acquired, from where, and whether they
 
 **Get a copy of the primary text (#1)**: *So Long, See You Tomorrow* — purchase the Vintage International edition (~$14) or borrow from library. If you get a searchable PDF/epub, we can ingest it as fair-use personal-research.
 
-**IA CDL items (#2, #3, #6–9, #13, #15, #16)**: borrow in browser when you need to verify a specific quote. We can't ingest these — the lit-verity workflow here is: read on IA, copy the exact passage into the `claims-and-quotes.md` ledger, then cite with an IA URL.
+**IA CDL items (#2, #3, #6–9, #13, #15, #16)**: borrow in browser when you need to verify a specific quote. We can't ingest these — the second-reader workflow here is: read on IA, copy the exact passage into the `claims-and-quotes.md` ledger, then cite with an IA URL.
 
 **Library/ILL (#12, #14)**: file requests now so they arrive in time for the Ring 3 pass.
 

@@ -1,7 +1,7 @@
 services:
-  lit-verity-mcp:
+  second-reader:
     build: .
-    container_name: lit-verity
+    container_name: second-reader
     env_file: .env
     environment:
       - TRANSPORT=http
