@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "lit-verity": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "DATABASE_URL": "${LIT_VERITY_DATABASE_URL}",
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
+        "VOYAGE_API_KEY": "${VOYAGE_API_KEY}",
+        "TRANSPORT": "stdio",
+        "LOG_LEVEL": "info"
+      }
+    }
+  }
+}
