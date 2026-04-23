@@ -1,3 +1,19 @@
+// Load .env before anything else so downstream imports see the values.
+// Priority: (1) LIT_VERITY_ENV_PATH if set, (2) ~/workspace/lit-verity-mcp/.env,
+// (3) ./.env in the current working directory. Silent if none exist — callers
+// that set the env vars via their shell or process manager still work.
+import 'dotenv/config';
+import dotenv from 'dotenv';
+import os from 'node:os';
+import path from 'node:path';
+const envCandidates = [
+  process.env.LIT_VERITY_ENV_PATH,
+  path.join(os.homedir(), 'workspace/lit-verity-mcp/.env'),
+].filter(Boolean) as string[];
+for (const p of envCandidates) {
+  dotenv.config({ path: p, override: false });
+}
+
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
@@ -578,9 +594,22 @@ async function runHTTP(): Promise<void> {
   });
 
   const port = parseInt(process.env.PORT || '3000', 10);
-  httpServer = app.listen(port, () => {
-    logger.info(`Literary Truth MCP server running on http://localhost:${port}/mcp`);
-  });
+  const certPath = process.env.SSL_CERT_PATH;
+  const keyPath = process.env.SSL_KEY_PATH;
+
+  if (certPath && keyPath) {
+    const { createServer } = await import('node:https');
+    const { readFileSync } = await import('node:fs');
+    const cert = readFileSync(certPath);
+    const key = readFileSync(keyPath);
+    httpServer = createServer({ cert, key }, app).listen(port, () => {
+      logger.info(`Literary Truth MCP server running on https://localhost:${port}/mcp`);
+    }) as unknown as ReturnType<ReturnType<typeof express>['listen']>;
+  } else {
+    httpServer = app.listen(port, () => {
+      logger.info(`Literary Truth MCP server running on http://localhost:${port}/mcp`);
+    });
+  }
 }
 
 setupGracefulShutdown();
