@@ -13,6 +13,7 @@ CREATE INDEX IF NOT EXISTS idx_annotations_chunk_id ON annotations(chunk_id);
 CREATE INDEX IF NOT EXISTS idx_annotations_tag ON annotations(tag);
 CREATE INDEX IF NOT EXISTS idx_annotations_session ON annotations(session_id);
 
--- Also add page_count and format columns to canonical_texts if missing
+-- Also add page_count, format, and translator columns to canonical_texts if missing
 ALTER TABLE canonical_texts ADD COLUMN IF NOT EXISTS page_count INTEGER;
 ALTER TABLE canonical_texts ADD COLUMN IF NOT EXISTS format TEXT;
+ALTER TABLE canonical_texts ADD COLUMN IF NOT EXISTS translator TEXT;
