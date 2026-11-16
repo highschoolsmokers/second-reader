@@ -1,5 +1,5 @@
 // Load .env before anything else so downstream imports see the values.
-// Priority: (1) SECOND_READER_ENV_PATH if set, (2) ~/workspace/second-reader/.env,
+// Priority: (1) SECOND_READER_ENV_PATH if set, (2) ~/workspace/second-reader-mcp/.env,
 // (3) ./.env in the current working directory. Silent if none exist — callers
 // that set the env vars via their shell or process manager still work.
 import 'dotenv/config';
@@ -9,11 +9,11 @@ import path from 'node:path';
 const envCandidates = [
   process.env.SECOND_READER_ENV_PATH,
   process.env.LIT_VERITY_ENV_PATH, // legacy name, kept for back-compat
-  path.join(os.homedir(), 'workspace/second-reader/.env'),
+  path.join(os.homedir(), 'workspace/second-reader-mcp/.env'),
   path.join(os.homedir(), 'workspace/lit-verity-mcp/.env'), // legacy path
 ].filter(Boolean) as string[];
 for (const p of envCandidates) {
-  dotenv.config({ path: p, override: false });
+  dotenv.config({ path: p, override: false, quiet: true });
 }
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
