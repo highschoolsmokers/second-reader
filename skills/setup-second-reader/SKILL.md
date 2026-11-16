@@ -57,19 +57,18 @@ The build writes `dist/index.js`, which is what the MCP config runs.
 
 ### 3. Create `.env`
 
-Create `<repo>/.env` with the three required values. Ask the user to paste
-them into the file themselves, or to give them to you to write; do not
-invent placeholders that look real.
-
-```env
-DATABASE_URL=postgresql://USER:PASSWORD@HOST/neondb?sslmode=require
-ANTHROPIC_API_KEY=
-VOYAGE_API_KEY=
+```bash
+cd <repo>
+cp .env.example .env
 ```
 
-Optional keys (`SEMANTIC_SCHOLAR_API_KEY`, `PAPERLESS_URL`,
-`PAPERLESS_TOKEN`, `LOG_LEVEL`, the thresholds) are listed in the README
-under Configuration. The server reads `.env` from
+Then fill in the three required values: `DATABASE_URL`,
+`ANTHROPIC_API_KEY`, and `VOYAGE_API_KEY`. Ask the user to paste them into
+the file themselves, or to give them to you to write; do not invent
+placeholders that look real.
+
+`.env.example` also lists every optional setting, commented out at its
+default. The server reads `.env` from
 `~/workspace/second-reader-mcp/.env`, from `SECOND_READER_ENV_PATH`, or from
 its working directory.
 
