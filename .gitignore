@@ -18,7 +18,7 @@ dist/
 # Local Claude Code per-user settings
 .claude/settings.local.json
 
-# Essay source PDFs — canonical copies live in Paperless-ngx + lit-verity corpus.
+# Essay source PDFs — canonical copies live in Paperless-ngx + second-reader corpus.
 # Working copies in essays/*/sources/ shouldn't be committed.
 essays/**/sources/*.pdf
 essays/**/sources/*.epub

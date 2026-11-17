@@ -1,10 +1,10 @@
 {
   "mcpServers": {
-    "lit-verity": {
+    "second-reader": {
       "command": "node",
       "args": ["dist/index.js"],
       "env": {
-        "DATABASE_URL": "${LIT_VERITY_DATABASE_URL}",
+        "DATABASE_URL": "${SECOND_READER_DATABASE_URL}",
         "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}",
         "VOYAGE_API_KEY": "${VOYAGE_API_KEY}",
         "TRANSPORT": "stdio",

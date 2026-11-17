@@ -1,4 +1,4 @@
-# Lit Verity MCP Server
+# Second Reader
 
 An MCP (Model Context Protocol) server that provides truth-grounding tools for AI agents working in academic literary criticism. It prevents hallucinated citations, fabricated quotations, distorted arguments, and misattributions by giving the agent verifiable access to a curated corpus of primary texts, theoretical claims, and bibliographic records.
 
@@ -38,7 +38,7 @@ The agent is instructed to tag every claim with a confidence level: `VERIFIED`, 
 +----------------------------+----------------------------+
                              |  MCP protocol (stdio or HTTP)
 +----------------------------v----------------------------+
-|            lit-verity-mcp-server                         |
+|            second-reader                         |
 |                                                          |
 |  Tools:                                                  |
 |    lit_search_texts        - semantic/exact/hybrid search |
@@ -239,8 +239,8 @@ The server provides guided workflow prompts that compose multiple tool calls int
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/lit-verity-mcp-server.git
-cd lit-verity-mcp-server
+git clone https://github.com/your-username/second-reader.git
+cd second-reader
 npm install
 ```
 
@@ -260,7 +260,7 @@ SEMANTIC_SCHOLAR_API_KEY=
 TRANSPORT=stdio
 
 # Optional: override the Claude model used for extraction/fidelity checks
-CLAUDE_MODEL=claude-sonnet-4-20250514
+CLAUDE_MODEL=claude-sonnet-5-5
 
 # Thresholds
 QUOTATION_SIMILARITY_THRESHOLD=0.85
@@ -307,10 +307,10 @@ Add to your project's `.mcp.json`:
 ```json
 {
   "mcpServers": {
-    "literary-verity": {
+    "second-reader": {
       "command": "node",
       "args": ["dist/index.js"],
-      "cwd": "/path/to/lit-verity-mcp-server",
+      "cwd": "/path/to/second-reader",
       "env": {
         "DATABASE_URL": "postgresql://...",
         "ANTHROPIC_API_KEY": "sk-ant-...",
@@ -336,10 +336,10 @@ For Claude Code with Docker:
 ```json
 {
   "mcpServers": {
-    "literary-verity": {
+    "second-reader": {
       "command": "docker",
-      "args": ["compose", "run", "--rm", "-i", "lit-verity-mcp"],
-      "cwd": "/path/to/lit-verity-mcp-server"
+      "args": ["compose", "run", "--rm", "-i", "second-reader"],
+      "cwd": "/path/to/second-reader"
     }
   }
 }
@@ -574,7 +574,7 @@ The `evals/` directory contains test cases designed to catch common failure mode
 ## Project Structure
 
 ```
-lit-verity-mcp-server/
+second-reader/
 ├── package.json
 ├── tsconfig.json
 ├── tsconfig.scripts.json        # type-checking for scripts/

@@ -1,6 +1,6 @@
 # sources/
 
-Downloaded PDFs staged for ingestion into the lit-verity corpus.
+Downloaded PDFs staged for ingestion into the Second Reader corpus.
 
 ## Convention
 
