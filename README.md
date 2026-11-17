@@ -260,7 +260,7 @@ SEMANTIC_SCHOLAR_API_KEY=
 TRANSPORT=stdio
 
 # Optional: override the Claude model used for extraction/fidelity checks
-CLAUDE_MODEL=claude-sonnet-4-20250514
+CLAUDE_MODEL=claude-sonnet-5-5
 
 # Thresholds
 QUOTATION_SIMILARITY_THRESHOLD=0.85

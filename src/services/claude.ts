@@ -7,13 +7,28 @@ interface ClaudeMessage {
 }
 
 interface ClaudeResponse {
-  content: Array<{ type: string; text: string }>;
+  content: Array<{ type: string; text?: string }>;
+  stop_reason?: string;
+  stop_details?: { category?: string | null } | null;
 }
 
-const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
+const DEFAULT_MODEL = 'claude-sonnet-5-5';
 
 function getModel(): string {
   return process.env.CLAUDE_MODEL || DEFAULT_MODEL;
+}
+
+// The callers make short JSON-extraction requests with small max_tokens
+// (300-2000). On the default model, turn extended thinking off so the whole
+// budget goes to the reply; thinking tokens count toward max_tokens.
+// `between_tools` exists only on claude-sonnet-5-5, so a CLAUDE_MODEL
+// override gets a plain request.
+function modelOptions(model: string): Record<string, unknown> {
+  if (model !== DEFAULT_MODEL) return {};
+  return {
+    thinking: { type: 'between_tools' },
+    output_config: { effort: 'low' },
+  };
 }
 
 function getApiKey(): string {
@@ -39,6 +54,7 @@ export async function callClaude(messages: ClaudeMessage[], maxTokens: number = 
         model,
         max_tokens: maxTokens,
         messages,
+        ...modelOptions(model),
       }),
     },
     { timeoutMs: 60_000 },
@@ -50,8 +66,20 @@ export async function callClaude(messages: ClaudeMessage[], maxTokens: number = 
   }
 
   const data = (await response.json()) as ClaudeResponse;
+
+  // A refusal is an HTTP 200 with no usable text, and a max_tokens stop cuts
+  // the JSON off. Callers already fall back when parsing fails; log why.
+  if (data.stop_reason === 'refusal') {
+    logger.warn('Claude declined the request', {
+      model,
+      category: data.stop_details?.category ?? null,
+    });
+  } else if (data.stop_reason === 'max_tokens') {
+    logger.warn('Claude response hit max_tokens before finishing', { model, maxTokens });
+  }
+
   return data.content
     .filter((block) => block.type === 'text')
-    .map((block) => block.text)
+    .map((block) => block.text ?? '')
     .join('');
 }
