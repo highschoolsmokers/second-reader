@@ -1,0 +1,10 @@
+{
+  "name": "second-reader",
+  "description": "Truth-grounded literary criticism — an MCP server plus a long-form essay workflow. The MCP provides lit_search_texts, lit_verify_citation, lit_lookup_claims, lit_procure_source, and lit_verify_output against a pgvector corpus. Five skills (setup-second-reader, start-essay, build-reading-list, procure-sources, verify-draft) drive a long-form critical essay end to end against the corpus.",
+  "version": "1.2.0",
+  "author": {
+    "name": "Gong"
+  },
+  "repository": "https://github.com/highschoolsmokers/second-reader",
+  "license": "MIT"
+}

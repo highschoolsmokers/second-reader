@@ -23,6 +23,6 @@ A long-form critical essay reading William Maxwell's *So Long, See You Tomorrow*
 
 1. Firm up the thesis (see `thesis.md`)
 2. Run `/build-reading-list` to generate Ring 1–3
-3. Run `/procure-sources` to pull PDFs into the lit-verity corpus
+3. Run `/procure-sources` to pull PDFs into the Second Reader corpus
 4. Draft section by section in `draft/`
 5. Run `/verify-draft` before submission

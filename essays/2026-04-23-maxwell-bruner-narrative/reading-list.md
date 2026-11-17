@@ -46,4 +46,4 @@ Tiered reading list. Populated initially; run `/build-reading-list` to expand.
 - [ ] Ring 1 fully procured
 - [ ] Ring 2 procured
 - [ ] Ring 3 as-needed
-- [ ] All Ring 1 items ingested into lit-verity corpus
+- [ ] All Ring 1 items ingested into Second Reader corpus

@@ -1,6 +1,6 @@
 # Claims and Quotes — Maxwell × Bruner
 
-Every interpretive claim the essay makes, paired with its citation. Run `/verify-draft` before submitting to check these are VERIFIED against the lit-verity corpus.
+Every interpretive claim the essay makes, paired with its citation. Run `/verify-draft` before submitting to check these are VERIFIED against the Second Reader corpus.
 
 | Section | Claim | Source (author, title, year) | Page | Verbatim quote | Confidence |
 |---------|-------|------------------------------|------|----------------|------------|
