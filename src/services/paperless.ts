@@ -80,7 +80,7 @@ export async function downloadFromPaperless(documentId: number): Promise<string 
     }
 
     const buffer = Buffer.from(await res.arrayBuffer());
-    const dir = await mkdtemp(join(tmpdir(), 'lit-truth-'));
+    const dir = await mkdtemp(join(tmpdir(), 'second-reader-'));
     const filePath = join(dir, `paperless-${documentId}.pdf`);
     await writeFile(filePath, buffer);
 
@@ -141,9 +141,7 @@ export interface PaperlessListResult {
   results: PaperlessDocument[];
 }
 
-export async function listPaperlessDocuments(
-  options: PaperlessListOptions = {},
-): Promise<PaperlessListResult | null> {
+export async function listPaperlessDocuments(options: PaperlessListOptions = {}): Promise<PaperlessListResult | null> {
   const config = getConfig();
   if (!config) return null;
 

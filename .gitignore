@@ -19,9 +19,16 @@ dist/
 .claude/settings.local.json
 
 # Essay source PDFs — canonical copies live in Paperless-ngx + second-reader corpus.
-# Working copies in essays/*/sources/ shouldn't be committed.
-essays/**/sources/*.pdf
-essays/**/sources/*.epub
+# Working copies in any essay's sources/ folder shouldn't be committed.
+**/sources/*.pdf
+**/sources/*.epub
+
+# PDFs dropped in for ingestion (folder kept via .gitkeep)
+uploads/*
+!uploads/.gitkeep
+
+# Eval run outputs
+evals/results/
 
 # Plugin build artifacts
 /tmp/

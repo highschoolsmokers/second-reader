@@ -176,9 +176,7 @@ function romanToInt(s: string): number {
 }
 
 function titleCase(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 export function chunkText(text: string, maxChunkSize: number = 1000, overlap: number = 100): TextChunkData[] {

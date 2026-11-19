@@ -146,14 +146,11 @@ export const ExportBibliographyInput = z
       .array(z.string().uuid())
       .optional()
       .describe('Specific citation IDs to include. If omitted, exports all verified citations.'),
-    style: z
-      .enum(['mla', 'chicago', 'apa'])
-      .default('chicago')
-      .describe('Citation style format'),
+    style: z.enum(['mla', 'chicago', 'apa']).default('chicago').describe('Citation style format'),
     session_id: z
       .string()
       .optional()
-      .describe('If provided, exports only citations referenced in this session\'s verification log'),
+      .describe("If provided, exports only citations referenced in this session's verification log"),
   })
   .strict();
 
@@ -182,10 +179,7 @@ export const ListLibraryInput = z
         author: z.string().optional().describe('Filter by author name (partial match, case-insensitive)'),
         title: z.string().optional().describe('Filter by title (partial match, case-insensitive)'),
         tag: z.string().optional().describe('Filter by Paperless-ngx tag (exact match)'),
-        ingested_after: z
-          .string()
-          .optional()
-          .describe('Only return documents ingested after this date (YYYY-MM-DD)'),
+        ingested_after: z.string().optional().describe('Only return documents ingested after this date (YYYY-MM-DD)'),
       })
       .optional()
       .describe('Optional filters to narrow the catalog'),

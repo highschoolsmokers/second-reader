@@ -13,5 +13,5 @@
     "declaration": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "scripts", "evals"]
+  "exclude": ["node_modules", "dist", "scripts", "evals", "src/**/*.test.ts"]
 }
