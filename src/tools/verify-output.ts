@@ -215,7 +215,7 @@ async function verifySingleCitation(
           ? 'exact'
           : sim >= QUOTATION_SIMILARITY_THRESHOLD
             ? 'high'
-            : sim >= 0.70
+            : sim >= 0.7
               ? 'moderate'
               : sim >= 0.55
                 ? 'low'

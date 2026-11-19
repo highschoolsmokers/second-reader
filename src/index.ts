@@ -1,16 +1,23 @@
 // Load .env before anything else so downstream imports see the values.
-// Priority: (1) SECOND_READER_ENV_PATH if set, (2) ~/workspace/second-reader-mcp/.env,
-// (3) ./.env in the current working directory. Silent if none exist — callers
-// that set the env vars via their shell or process manager still work.
-import 'dotenv/config';
-import dotenv from 'dotenv';
+// Values already in the environment (e.g. from an MCP config's `env` block)
+// always win. Otherwise the first file to define a key wins, in this order:
+//   1. $SECOND_READER_ENV_PATH
+//   2. ~/.config/second-reader/.env   (stable location for plugin installs)
+//   3. <repo root>/.env               (next to dist/ or src/)
+//   4. ./.env in the current working directory
+// Silent if none exist.
+
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import dotenv from 'dotenv';
+
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const envCandidates = [
   process.env.SECOND_READER_ENV_PATH,
-  process.env.LIT_VERITY_ENV_PATH, // legacy name, kept for back-compat
-  path.join(os.homedir(), 'workspace/second-reader-mcp/.env'),
-  path.join(os.homedir(), 'workspace/lit-verity-mcp/.env'), // legacy path
+  path.join(os.homedir(), '.config', 'second-reader', '.env'),
+  path.join(repoRoot, '.env'),
+  path.join(process.cwd(), '.env'),
 ].filter(Boolean) as string[];
 for (const p of envCandidates) {
   dotenv.config({ path: p, override: false, quiet: true });
@@ -20,7 +27,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express from 'express';
-import { z } from 'zod';
+import { registerPrompts } from './prompts.js';
+import { registerResources } from './resources.js';
 import {
   AddClaimInput,
   AnnotateInput,
@@ -34,7 +42,6 @@ import {
   VerifyCitationInput,
   VerifyOutputInput,
 } from './schemas/tools.js';
-import { getDb } from './services/db.js';
 import { logger } from './services/logger.js';
 import { addClaim } from './tools/add-claim.js';
 import { annotate } from './tools/annotate.js';
@@ -400,151 +407,11 @@ Returns: JSON with annotation ID, source context, and passage preview.`,
 );
 
 // ============================================================
-// PROMPTS
+// PROMPTS + RESOURCES
 // ============================================================
 
-server.prompt(
-  'analyze-argument',
-  "Guided workflow to analyze and verify a theorist's argument with full source grounding",
-  {
-    theorist: z.string().describe('Name of the theorist to analyze'),
-    topic: z.string().describe('The argument or concept to analyze'),
-  },
-  async ({ theorist, topic }) => ({
-    messages: [
-      {
-        role: 'user',
-        content: {
-          type: 'text',
-          text: `Analyze ${theorist}'s argument about ${topic}. Follow this protocol:
-
-1. Use lit_lookup_claims to find documented claims by ${theorist} related to "${topic}"
-2. Use lit_query_graph to find how this argument relates to other theorists' positions
-3. Use lit_search_texts to find the specific passages where ${theorist} makes this argument
-4. For any citations you reference, use lit_verify_citation to confirm they exist
-
-Tag every claim with its confidence level: VERIFIED, PLAUSIBLE, UNVERIFIED, or INFERENCE.
-Distinguish clearly between what the sources document and what you infer.`,
-        },
-      },
-    ],
-  }),
-);
-
-server.prompt(
-  'compare-theorists',
-  "Compare two theorists' positions on a topic using verified sources",
-  {
-    theorist_a: z.string().describe('First theorist'),
-    theorist_b: z.string().describe('Second theorist'),
-    topic: z.string().describe('Shared topic or concept'),
-  },
-  async ({ theorist_a, theorist_b, topic }) => ({
-    messages: [
-      {
-        role: 'user',
-        content: {
-          type: 'text',
-          text: `Compare ${theorist_a} and ${theorist_b} on "${topic}". Follow this protocol:
-
-1. Use lit_lookup_claims for each theorist to find their documented positions on "${topic}"
-2. Use lit_query_graph to check for direct relationships between their claims (critiques, extends, responds_to, etc.)
-3. Use lit_search_texts to find relevant passages from each theorist
-4. Verify all citations with lit_verify_citation
-
-Structure your comparison as:
-- ${theorist_a}'s position (with VERIFIED source passages)
-- ${theorist_b}'s position (with VERIFIED source passages)
-- Points of convergence and divergence
-- Documented intellectual relationships (from the graph)
-- Your analysis (clearly marked as INFERENCE)`,
-        },
-      },
-    ],
-  }),
-);
-
-server.prompt(
-  'verify-essay',
-  'Run full verification on a completed essay or response',
-  { session_id: z.string().describe('Session ID for audit trail') },
-  async ({ session_id }) => ({
-    messages: [
-      {
-        role: 'user',
-        content: {
-          type: 'text',
-          text: `I'm going to paste an essay or response for verification. Use lit_verify_output with session_id "${session_id}" to check every citation, quotation, and argument characterization. Then provide a summary of what is verified, what is plausible, and what is flagged.
-
-For any FLAGGED items, suggest corrections or note that the claim should be removed.
-For any sources in the procurement queue, note them for future indexing.`,
-        },
-      },
-    ],
-  }),
-);
-
-// ============================================================
-// RESOURCES
-// ============================================================
-
-server.resource('lit://stats', 'lit://stats', async (uri) => {
-  const sql = getDb();
-  const [texts] = await sql(`SELECT COUNT(*) AS count FROM canonical_texts`);
-  const [chunks] = await sql(`SELECT COUNT(*) AS count FROM text_chunks`);
-  const [claims] = await sql(`SELECT COUNT(*) AS count FROM claims`);
-  const [relations] = await sql(`SELECT COUNT(*) AS count FROM claim_relations`);
-  const [citations] = await sql(`SELECT COUNT(*) AS count FROM citations WHERE bibliographic_verified = TRUE`);
-  const [indexed] = await sql(`SELECT COUNT(*) AS count FROM citations WHERE full_text_indexed = TRUE`);
-
-  return {
-    contents: [
-      {
-        uri: uri.href,
-        mimeType: 'application/json',
-        text: JSON.stringify(
-          {
-            canonical_texts: texts.count,
-            text_chunks: chunks.count,
-            claims: claims.count,
-            claim_relations: relations.count,
-            verified_citations: citations.count,
-            fully_indexed_sources: indexed.count,
-          },
-          null,
-          2,
-        ),
-      },
-    ],
-  };
-});
-
-server.resource('lit://procurement', 'lit://procurement', async (uri) => {
-  const sql = getDb();
-  const pending = await sql(`
-      SELECT title, authors, journal, year, doi, reason, requested_at
-      FROM procurement_queue
-      WHERE status = 'pending'
-      ORDER BY requested_at DESC
-    `);
-
-  return {
-    contents: [
-      {
-        uri: uri.href,
-        mimeType: 'application/json',
-        text: JSON.stringify(
-          {
-            pending_count: pending.length,
-            items: pending,
-          },
-          null,
-          2,
-        ),
-      },
-    ],
-  };
-});
+registerPrompts(server);
+registerResources(server);
 
 // ============================================================
 // TRANSPORT + GRACEFUL SHUTDOWN
@@ -599,7 +466,13 @@ async function runHTTP(): Promise<void> {
   const certPath = process.env.SSL_CERT_PATH;
   const keyPath = process.env.SSL_KEY_PATH;
 
-  if (certPath && keyPath) {
+  const { existsSync } = await import('node:fs');
+  const useTls = Boolean(certPath && keyPath && existsSync(certPath) && existsSync(keyPath));
+  if (certPath && keyPath && !useTls) {
+    logger.warn('SSL_CERT_PATH/SSL_KEY_PATH set but files not found; falling back to HTTP');
+  }
+
+  if (useTls && certPath && keyPath) {
     const { createServer } = await import('node:https');
     const { readFileSync } = await import('node:fs');
     const cert = readFileSync(certPath);
