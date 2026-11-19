@@ -2,11 +2,7 @@ import type { z } from 'zod';
 import type { ListLibraryInput } from '../schemas/tools.js';
 import { getDb } from '../services/db.js';
 import { createRequestId, logger } from '../services/logger.js';
-import {
-  getPaperlessTags,
-  isPaperlessConfigured,
-  listPaperlessDocuments,
-} from '../services/paperless.js';
+import { getPaperlessTags, isPaperlessConfigured, listPaperlessDocuments } from '../services/paperless.js';
 
 type ListLibraryParams = z.infer<typeof ListLibraryInput>;
 
@@ -54,9 +50,7 @@ function matchesFilter(
   return true;
 }
 
-async function fetchCorpusDocuments(
-  filter?: ListLibraryParams['filter'],
-): Promise<LibraryDocument[]> {
+async function fetchCorpusDocuments(filter?: ListLibraryParams['filter']): Promise<LibraryDocument[]> {
   const sql = getDb();
 
   const conditions: string[] = [];
@@ -102,9 +96,7 @@ async function fetchCorpusDocuments(
   }));
 }
 
-async function fetchPaperlessDocuments(
-  filter?: ListLibraryParams['filter'],
-): Promise<LibraryDocument[]> {
+async function fetchPaperlessDocuments(filter?: ListLibraryParams['filter']): Promise<LibraryDocument[]> {
   if (!isPaperlessConfigured()) return [];
 
   const result = await listPaperlessDocuments({ limit: 500 });
@@ -143,10 +135,7 @@ function guessFormat(filename: string): string {
   return 'other';
 }
 
-function mergeDocuments(
-  corpusDocs: LibraryDocument[],
-  paperlessDocs: LibraryDocument[],
-): LibraryDocument[] {
+function mergeDocuments(corpusDocs: LibraryDocument[], paperlessDocs: LibraryDocument[]): LibraryDocument[] {
   const merged = new Map<string, LibraryDocument>();
 
   for (const doc of corpusDocs) {

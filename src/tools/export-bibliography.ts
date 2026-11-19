@@ -140,8 +140,7 @@ export async function exportBibliography(params: ExportBibliographyParams): Prom
 
   const worksCited = entries.map((e) => e.formatted).join('\n\n');
 
-  const heading =
-    style === 'mla' ? 'Works Cited' : style === 'apa' ? 'References' : 'Bibliography';
+  const heading = style === 'mla' ? 'Works Cited' : style === 'apa' ? 'References' : 'Bibliography';
 
   return JSON.stringify(
     {

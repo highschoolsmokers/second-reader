@@ -3,7 +3,8 @@ name: setup-second-reader
 description: >
   Install and connect the second-reader MCP server so the lit_* tools are
   available: check prerequisites, install and build, create the .env and the
-  pgvector schema, register the server in .mcp.json, and confirm the
+  pgvector schema, register the server (bundled with the plugin, or in
+  .mcp.json for a standalone checkout), and confirm the
   connection with lit_list_library. Use when the user says "set up second
   reader", "install the MCP", "connect the corpus", or when another skill
   (start-essay, procure-sources) finds the lit_* tools missing. Not for
@@ -23,8 +24,14 @@ against the corpus instead.
   `vector` extension itself.
 - A Voyage AI API key (embeddings) and an Anthropic API key (the
   verification pipeline).
-- A local checkout of `https://github.com/highschoolsmokers/second-reader`.
-  Call its path `<repo>` below.
+- The server code. Call its path `<repo>` below:
+  - **Installed as a Claude Code plugin** (the usual case): `<repo>` is
+    `${CLAUDE_PLUGIN_ROOT}`. The plugin already registers the
+    `second-reader` MCP server, pointing at `<repo>/dist/index.js`; it only
+    needs building and credentials.
+  - **Standalone checkout** of
+    `https://github.com/highschoolsmokers/second-reader`: `<repo>` is the
+    checkout, and step 5 registers the server by hand.
 
 ## Handling secrets
 
@@ -33,10 +40,10 @@ them back, or `cat` a file that holds them (`.env`, `.mcp.json`). To check a
 value is set, print whether it exists, not what it is:
 
 ```bash
-grep -c '^VOYAGE_API_KEY=.' <repo>/.env
+grep -c '^VOYAGE_API_KEY=.' <env file>
 ```
 
-`.env` and `.mcp.json` are gitignored. Keep them that way.
+In a checkout, `.env` and `.mcp.json` are gitignored. Keep them that way.
 
 ## Steps
 
@@ -55,11 +62,20 @@ npm run build
 
 The build writes `dist/index.js`, which is what the MCP config runs.
 
+For a plugin install this is a one-time step per plugin version: a plugin
+update replaces `${CLAUDE_PLUGIN_ROOT}`, so rerun it after updating.
+
 ### 3. Create `.env`
 
+Where it goes:
+
+- **Plugin install:** `~/.config/second-reader/.env`. Not inside
+  `${CLAUDE_PLUGIN_ROOT}`, which is replaced on every plugin update.
+- **Standalone checkout:** `<repo>/.env`.
+
 ```bash
-cd <repo>
-cp .env.example .env
+mkdir -p ~/.config/second-reader
+cp <repo>/.env.example ~/.config/second-reader/.env   # or <repo>/.env
 ```
 
 Then fill in the three required values: `DATABASE_URL`,
@@ -68,26 +84,33 @@ the file themselves, or to give them to you to write; do not invent
 placeholders that look real.
 
 `.env.example` also lists every optional setting, commented out at its
-default. The server reads `.env` from
-`~/workspace/second-reader-mcp/.env`, from `SECOND_READER_ENV_PATH`, or from
-its working directory.
+default. The server reads the first of these that defines each key
+(values already in the process environment always win):
+`$SECOND_READER_ENV_PATH`, `~/.config/second-reader/.env`, `<repo>/.env`,
+then `./.env` in its working directory.
 
 ### 4. Create the schema
 
-`scripts/setup-db.ts` does not load `.env` on its own, so pass it in:
+`setup-db` loads `./.env` itself. For the `~/.config` location, pass the
+file in:
 
 ```bash
 cd <repo>
-npx tsx --env-file=.env scripts/setup-db.ts
+npm run setup-db                                                   # <repo>/.env
+npx tsx --env-file=$HOME/.config/second-reader/.env scripts/setup-db.ts   # plugin install
 ```
 
-Each statement prints `OK` or `SKIP (exists)`. Re-running is safe. Any
-`FAIL` line means the database URL or permissions are wrong. Show the user
+It applies `sql/schema.sql`, then any `sql/migrate-*.sql` not yet recorded
+in the `schema_migrations` table. Each statement prints `OK` or
+`SKIP (exists)`. Re-running is safe. A `FAIL` line stops the run and usually
+means the database URL or permissions are wrong. Show the user
 the error message, check it for the URL or password first, and stop.
 
 ### 5. Register the server with Claude Code
 
-Add a `second-reader` entry to the `.mcp.json` of the project where the user
+**Plugin install:** skip this step; the plugin registers the server.
+
+**Standalone checkout:** add a `second-reader` entry to the `.mcp.json` of the project where the user
 will write, using `.mcp.json.example` in the repo as the template. Set
 `cwd` to the absolute path of `<repo>`, and pass the three keys through
 `env`, either as values or as `${VAR}` references to the user's shell
@@ -123,8 +146,9 @@ confirms the database connection as well.
 
 ## If it fails
 
-- **Tools do not appear:** confirm `dist/index.js` exists under the `cwd`
-  in `.mcp.json`, then run `node dist/index.js` from `<repo>`. It should log
+- **Tools do not appear:** confirm `dist/index.js` exists under `<repo>`
+  (for a plugin, `${CLAUDE_PLUGIN_ROOT}`; for a checkout, the `cwd` in
+  `.mcp.json`), then run `node dist/index.js` from `<repo>`. It should log
   `Second Reader running on stdio` and wait for input.
 - **Tools appear but calls fail with a database error:** a value set in
   `.mcp.json` `env` wins; `.env` only fills values that are not already set.

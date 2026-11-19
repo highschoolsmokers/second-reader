@@ -118,8 +118,10 @@ criticism. Sections are placeholders; user edits freely.
 
 Use the same structure the user already validated on the Maxwell/Bruner essay
 — a table per ring with columns: #, Author, Title, Year, Tier, URL / Action.
-See `references/procurement-ledger-example.md` in the plugin for the worked
-example.
+See `${CLAUDE_PLUGIN_ROOT}/examples/maxwell-bruner-procurement-ledger.md`
+for the worked example with the tier legend, and
+`${CLAUDE_PLUGIN_ROOT}/examples/maxwell-bruner-essay/` for a complete essay
+project scaffolded this way.
 
 ## Claims-and-quotes ledger template
 

@@ -1,22 +1,22 @@
 {
   "name": "second-reader",
   "version": "1.2.0",
-  "description": "Second Reader — an MCP server for truth-grounding in academic literary criticism",
+  "description": "Second Reader \u2014 an MCP server for truth-grounding in academic literary criticism",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "rm -rf dist && tsc",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "setup-db": "tsx scripts/setup-db.ts",
     "ingest": "tsx scripts/ingest.ts",
     "seed-claims": "tsx scripts/seed-claims.ts",
-    "eval": "tsx scripts/run-evals.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "check-scripts": "tsc --project tsconfig.scripts.json",
-    "format": "biome check --write src/",
-    "lint": "biome check src/"
+    "format": "biome check --write src/ scripts/",
+    "lint": "biome check src/ scripts/",
+    "seed-relations": "tsx scripts/seed-relations.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
@@ -35,5 +35,8 @@
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

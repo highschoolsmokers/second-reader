@@ -6,10 +6,7 @@ import { generateEmbedding } from '../services/embeddings.js';
 
 type SearchTextsParams = z.infer<typeof SearchTextsInput>;
 
-function buildWhereClause(
-  params: SearchTextsParams,
-  startIdx: number,
-): { clause: string; values: unknown[] } {
+function buildWhereClause(params: SearchTextsParams, startIdx: number): { clause: string; values: unknown[] } {
   const conditions: string[] = [];
   const values: unknown[] = [];
   let idx = startIdx;
