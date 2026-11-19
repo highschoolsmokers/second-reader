@@ -1,7 +1,7 @@
 {
   "name": "second-reader",
   "version": "1.2.0",
-  "description": "Second Reader \u2014 an MCP server for truth-grounding in academic literary criticism",
+  "description": "Second Reader — an MCP server for truth-grounding in academic literary criticism",
   "type": "module",
   "main": "dist/index.js",
   "scripts": {
@@ -16,7 +16,8 @@
     "check-scripts": "tsc --project tsconfig.scripts.json",
     "format": "biome check --write src/ scripts/",
     "lint": "biome check src/ scripts/",
-    "seed-relations": "tsx scripts/seed-relations.ts"
+    "seed-relations": "tsx scripts/seed-relations.ts",
+    "package": "bash scripts/package-plugin.sh"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

@@ -497,6 +497,8 @@ Install it from a marketplace that lists it (`/plugin install second-reader@<mar
 
 The plugin runs `${CLAUDE_PLUGIN_ROOT}/dist/index.js`, which isn't committed. Run `npm install && npm run build` in the plugin directory once per plugin version (the `setup-second-reader` skill does this), and keep credentials in `~/.config/second-reader/.env` so plugin updates don't wipe them.
 
+To build a self-contained `second-reader.plugin` zip, run `npm run package` (or `npm run package -- <path>` to write it elsewhere). The script builds `dist/`, installs production dependencies in a temporary copy so the server runs without a separate `npm install`, and refuses to package a `.env` or `.mcp.json`. The zip is about 32 MB, most of it the OCR and PDF libraries.
+
 To develop the plugin from this checkout, run `claude --plugin-dir .`. If the checkout also has a local `.mcp.json` registering `second-reader`, remove that entry while testing so the server isn't registered twice.
 
 Without the plugin, `agents/lit-research.md` doubles as a system prompt: its "MCP Integration" section holds the tool-use and confidence-tagging rules.
