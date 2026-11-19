@@ -13,29 +13,38 @@ async function seedRelations(): Promise<void> {
 
   for (const rel of data) {
     // Find source claim
-    const sourceClaims = await sql(`
+    const sourceClaims = await sql(
+      `
       SELECT id FROM claims
       WHERE theorist ILIKE $1 AND work_title ILIKE $2
       LIMIT 1
-    `, [`%${rel.source_theorist}%`, `%${rel.source_work}%`]);
+    `,
+      [`%${rel.source_theorist}%`, `%${rel.source_work}%`],
+    );
 
     // Find target claim
-    const targetClaims = await sql(`
+    const targetClaims = await sql(
+      `
       SELECT id FROM claims
       WHERE theorist ILIKE $1 AND work_title ILIKE $2
       LIMIT 1
-    `, [`%${rel.target_theorist}%`, `%${rel.target_work}%`]);
+    `,
+      [`%${rel.target_theorist}%`, `%${rel.target_work}%`],
+    );
 
     if (!sourceClaims.length || !targetClaims.length) {
       console.log(`SKIP: Could not resolve claims for ${rel.source_theorist} → ${rel.target_theorist}`);
       continue;
     }
 
-    await sql(`
+    await sql(
+      `
       INSERT INTO claim_relations (source_claim_id, target_claim_id, relation, notes)
       VALUES ($1, $2, $3, $4)
       ON CONFLICT DO NOTHING
-    `, [sourceClaims[0].id, targetClaims[0].id, rel.relation, rel.notes]);
+    `,
+      [sourceClaims[0].id, targetClaims[0].id, rel.relation, rel.notes],
+    );
 
     console.log(`  ${rel.source_theorist} --[${rel.relation}]--> ${rel.target_theorist}`);
   }

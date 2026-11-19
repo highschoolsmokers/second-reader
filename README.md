@@ -2,7 +2,7 @@
 
 An MCP (Model Context Protocol) server that provides truth-grounding tools for AI agents working in academic literary criticism. It prevents hallucinated citations, fabricated quotations, distorted arguments, and misattributions by giving the agent verifiable access to a curated corpus of primary texts, theoretical claims, and bibliographic records.
 
-Any Claude interface that supports MCP can use this server: Claude Code, claude.ai, or custom applications built with the Anthropic SDK. Pairs with [literary-research-plugin](https://github.com/highschoolsmokers/literary-research-plugin) for a complete research workflow with guided templates and MCP-aware confidence tagging.
+Any Claude interface that supports MCP can use this server: Claude Code, claude.ai, or custom applications built with the Anthropic SDK. The repo is also a Claude Code plugin: installing it bundles the server with five essay-workflow skills, a research agent, and research templates (see [Claude Code Plugin](#claude-code-plugin)).
 
 ## The Problem
 
@@ -239,14 +239,14 @@ The server provides guided workflow prompts that compose multiple tool calls int
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/second-reader.git
+git clone https://github.com/highschoolsmokers/second-reader.git
 cd second-reader
 npm install
 ```
 
 ### Configuration
 
-Copy `.env.example` to `.env` and fill in your credentials:
+Copy `.env.example` to `.env` and fill in your credentials. The server reads the first file that defines each key, in this order (values already in the process environment, e.g. from an MCP config's `env` block, always win): `$SECOND_READER_ENV_PATH`, `~/.config/second-reader/.env` (use this for plugin installs), `<repo>/.env`, then `./.env`.
 
 ```env
 DATABASE_URL=postgresql://...@your-neon-host/neondb?sslmode=require
@@ -281,17 +281,9 @@ PAPERLESS_TOKEN=your-paperless-api-token
 npm run setup-db
 ```
 
-This creates all 9 tables (including `annotations`), indexes (including HNSW vector index), and the pgvector extension. Safe to run multiple times (skips existing objects).
+This creates all 9 tables (including `annotations`), indexes (including HNSW vector index), and the pgvector extension, then applies any `sql/migrate-*.sql` files not yet recorded in the `schema_migrations` table. On a fresh database the migrations are already part of `schema.sql` and are just recorded. Safe to run multiple times.
 
-If upgrading from a previous version, run the migrations:
-
-```bash
-# If upgrading from IVFFlat indexing
-psql $DATABASE_URL -f sql/migrate-001-hnsw.sql
-
-# If upgrading from before annotations/library features
-psql $DATABASE_URL -f sql/migrate-002-annotations.sql
-```
+Upgrading an older database is the same command. A database created before migration tracking existed runs each migration once; `migrate-001` rebuilds the HNSW index, which can take a while on a large corpus.
 
 ### Build and Test
 
@@ -302,7 +294,9 @@ npm test
 
 ### Connect to Claude Code
 
-Add to your project's `.mcp.json`:
+If you installed the [plugin](#claude-code-plugin), the server is already registered; build it and put credentials in `~/.config/second-reader/.env`. The `setup-second-reader` skill walks through it.
+
+For a standalone checkout, add to your project's `.mcp.json`:
 
 ```json
 {
@@ -421,7 +415,7 @@ npx tsx scripts/seed-claims.ts
 ### Seeding Relationships
 
 ```bash
-npx tsx scripts/seed-relations.ts ./relations.json
+npm run seed-relations -- ./relations.json
 ```
 
 The JSON format:
@@ -484,81 +478,32 @@ PAPERLESS_TOKEN=your-api-token
 
 3. That's it. The `lit_procure_source` and `lit_list_library` tools will automatically use Paperless-ngx for search, listing, and archival.
 
-## Using with Literary Research Plugin
+## Claude Code Plugin
 
-The easiest way to use this server is with the [literary-research-plugin](https://github.com/highschoolsmokers/literary-research-plugin) — a Claude Code agent that provides a complete literary research workflow with templates, confidence markers, and MCP-aware tool usage.
+This repo is a Claude Code plugin (`.claude-plugin/plugin.json`). Installing it registers the `second-reader` MCP server and adds:
 
-```bash
-# Install the plugin
-/plugin marketplace add highschoolsmokers/writer-utilities-marketplace
-/plugin install literary-research-plugin
+| Component | Path | What it does |
+|-----------|------|--------------|
+| `setup-second-reader` skill | `skills/setup-second-reader/` | Builds the server, writes `.env`, creates the schema, confirms the connection |
+| `start-essay` skill | `skills/start-essay/` | Scaffolds a long-form essay project (thesis, outline, ledgers, draft) |
+| `build-reading-list` skill | `skills/build-reading-list/` | Tiered Ring 1/2/3 reading list from the thesis |
+| `procure-sources` skill | `skills/procure-sources/` | Finds legal access paths and ingests PDFs into the corpus |
+| `verify-draft` skill | `skills/verify-draft/` | Section-by-section verification report for a draft |
+| `lit-research` agent | `agents/lit-research.md` | Open-ended literary research that writes cited reference files |
+| Templates | `templates/` | Study, bibliography, and session-log scaffolds used by the agent |
+| Examples | `examples/` | A filled-in craft study and a complete essay project (`maxwell-bruner-essay/`) |
 
-# Or run directly
-claude --agent /path/to/literary-research-plugin/agents/literary-research.md
-```
+Install it from a marketplace that lists it (`/plugin install second-reader@<marketplace>`), or load it straight from a checkout with `claude --plugin-dir /path/to/second-reader`.
 
-The plugin detects `lit_*` tools automatically. When connected, it uses corpus search instead of quoting from memory, verifies every citation through the MCP pipeline, checks Paperless-ngx for paywalled sources, and runs post-generation audits. When not connected, it falls back to manual archive verification.
+The plugin runs `${CLAUDE_PLUGIN_ROOT}/dist/index.js`, which isn't committed. Run `npm install && npm run build` in the plugin directory once per plugin version (the `setup-second-reader` skill does this), and keep credentials in `~/.config/second-reader/.env` so plugin updates don't wipe them.
 
-See the [plugin README](https://github.com/highschoolsmokers/literary-research-plugin) for details.
+To develop the plugin from this checkout, run `claude --plugin-dir .`. If the checkout also has a local `.mcp.json` registering `second-reader`, remove that entry while testing so the server isn't registered twice.
 
-## Agent System Prompt
-
-If you prefer to use a custom system prompt instead of the plugin, add this to your `CLAUDE.md` or system prompt:
-
-```
-You are a literary criticism research assistant with access to a truth-grounding
-MCP server. You help scholars analyze literary texts, theoretical arguments,
-and critical traditions.
-
-CRITICAL RULES:
-
-1. NEVER quote a literary text from memory. Always use lit_search_texts to
-   retrieve verified passages. If a text is not in the corpus, say so explicitly.
-   Use mode: "exact" for specific phrases and mode: "semantic" for concepts.
-
-2. NEVER cite a scholarly source without verifying it exists using
-   lit_verify_citation. If verification fails, say "I cannot verify this
-   source exists" and mark it FLAGGED.
-
-3. When characterizing a theorist's argument, use lit_lookup_claims to retrieve
-   the documented position. If no record exists, clearly mark your
-   characterization as UNVERIFIED.
-
-4. When describing relationships between theoretical positions, use
-   lit_query_graph to check. If no edge exists, note the relationship is your
-   INFERENCE, not a verified connection.
-
-5. When a source is PLAUSIBLE but full text is not indexed, use
-   lit_procure_source to check the user's Paperless-ngx archive or
-   ask them to download the PDF. Do not silently skip verification.
-
-6. After completing a substantive response with citations, use lit_verify_output
-   to run the full verification pipeline on your own output.
-
-7. For every claim, tag your confidence:
-   - VERIFIED: grounded in a retrieved, confirmed source
-   - PLAUSIBLE: source exists but full text not indexed
-   - UNVERIFIED: no source confirmation available
-   - INFERENCE: your reasoning, not directly sourced
-   - FLAGGED: failed a verification check
-
-8. When you verify a claim for the first time, use lit_add_claim to record it
-   in the claims database so future sessions benefit from your work.
-
-9. Use lit_annotate to bookmark key passages you discover during research.
-   Tag them by topic or chapter so they can be retrieved later.
-
-10. At the end of a research session, use lit_export_bibliography to generate
-    a formatted works-cited page from the citations you verified.
-
-You may reason, synthesize, and make arguments freely -- but every factual
-claim must be grounded through tool use. Distinguish clearly between what
-you have verified and what you are inferring.
-```
+Without the plugin, `agents/lit-research.md` doubles as a system prompt: its "MCP Integration" section holds the tool-use and confidence-tagging rules.
 
 ## Evaluation
 
-The `evals/` directory contains test cases designed to catch common failure modes:
+`evals/test-cases.xml` holds test cases designed to catch common failure modes. There is no automated runner yet: run each question against an agent connected to the server and compare its behavior with `expected_behavior`.
 
 | Category | Tests | What it catches |
 |----------|-------|-----------------|
@@ -575,24 +520,31 @@ The `evals/` directory contains test cases designed to catch common failure mode
 
 ```
 second-reader/
-├── package.json
-├── tsconfig.json
-├── tsconfig.scripts.json        # type-checking for scripts/
-├── .env                         # credentials (not committed)
-├── .mcp.json                    # Claude Code MCP config
-├── Dockerfile                   # multi-stage build
-├── docker-compose.yml
-├── sql/
-│   ├── schema.sql               # full database schema (9 tables, HNSW index)
-│   ├── migrate-001-hnsw.sql     # migration: IVFFlat → HNSW
-│   └── migrate-002-annotations.sql  # migration: annotations table + canonical_texts columns
+├── .claude-plugin/
+│   └── plugin.json              # plugin manifest; registers the MCP server
+├── skills/                      # plugin skills (one SKILL.md per folder)
+│   ├── setup-second-reader/
+│   ├── start-essay/
+│   ├── build-reading-list/
+│   ├── procure-sources/
+│   └── verify-draft/
+├── agents/
+│   └── lit-research.md          # research agent (also usable as a system prompt)
+├── templates/                   # research-file templates used by the agent
+├── examples/
+│   ├── craft-study-time-compression.md
+│   ├── maxwell-bruner-procurement-ledger.md   # ledger with tier legend
+│   └── maxwell-bruner-essay/    # complete essay project built with the skills
 ├── src/
-│   ├── index.ts                 # MCP server entry + transport + prompts
+│   ├── index.ts                 # MCP server entry: env loading, tool registration, transports
+│   ├── prompts.ts               # MCP prompts
+│   ├── resources.ts             # MCP resources (lit://stats, lit://procurement)
 │   ├── types.ts                 # TypeScript interfaces
 │   ├── constants.ts             # thresholds and config
+│   ├── pdf-parse.d.ts           # type shim for pdf-parse
 │   ├── schemas/
 │   │   └── tools.ts             # Zod input schemas (all 11 tools)
-│   ├── services/
+│   ├── services/                # external clients and helpers (*.test.ts alongside)
 │   │   ├── db.ts                # Neon Postgres connection + health check
 │   │   ├── embeddings.ts        # Voyage AI embeddings (batch support)
 │   │   ├── fetch-retry.ts       # fetch with exponential backoff + timeout
@@ -602,31 +554,27 @@ second-reader/
 │   │   ├── openalex.ts          # OpenAlex API client
 │   │   ├── claude.ts            # Claude API client (configurable model)
 │   │   ├── pdf.ts               # PDF text extraction + OCR fallback + smart chunking
-│   │   ├── paperless.ts         # Paperless-ngx API client (search, list, download, upload, tags)
-│   │   ├── fetch-retry.test.ts  # tests: retry logic
-│   │   ├── logger.test.ts       # tests: logger
-│   │   └── pdf.test.ts          # tests: chunking
-│   └── tools/
-│       ├── search-texts.ts      # lit_search_texts (semantic/exact/hybrid)
-│       ├── list-library.ts      # lit_list_library
-│       ├── lookup-claims.ts     # lit_lookup_claims
-│       ├── query-graph.ts       # lit_query_graph
-│       ├── add-claim.ts         # lit_add_claim
-│       ├── verify-citation.ts   # lit_verify_citation (parallel API queries)
-│       ├── verify-output.ts     # lit_verify_output (graded confidence)
-│       ├── ingest-pdf.ts        # lit_ingest_pdf (OCR, dedup, section detection)
-│       ├── procure-source.ts    # lit_procure_source
-│       ├── export-bibliography.ts # lit_export_bibliography (MLA/Chicago/APA)
-│       └── annotate.ts          # lit_annotate
+│   │   └── paperless.ts         # Paperless-ngx API client
+│   └── tools/                   # one file per lit_* tool
 ├── scripts/
-│   ├── setup-db.ts              # create database schema
-│   ├── ingest.ts                # ingest a PDF into the corpus
-│   ├── seed-claims.ts           # add claims (file or interactive)
-│   └── seed-relations.ts        # add claim relationships
+│   ├── setup-db.ts              # schema + tracked migrations (npm run setup-db)
+│   ├── ingest.ts                # ingest a PDF (npm run ingest)
+│   ├── seed-claims.ts           # add claims (npm run seed-claims)
+│   └── seed-relations.ts        # add claim relationships (npm run seed-relations)
+├── sql/
+│   ├── schema.sql               # full schema (includes every migration)
+│   ├── migrate-001-hnsw.sql     # IVFFlat → HNSW
+│   └── migrate-002-annotations.sql  # annotations table + canonical_texts columns
 ├── evals/
-│   ├── test-cases.xml           # eval suite
-│   └── results/                 # eval run outputs
-└── dist/                        # compiled JS
+│   └── test-cases.xml           # eval questions (results/ is gitignored)
+├── uploads/                     # drop PDFs here for ingestion (contents gitignored)
+├── .env.example                 # every setting, with defaults
+├── .mcp.json.example            # standalone MCP registration template
+├── Dockerfile                   # multi-stage build
+├── docker-compose.yml
+├── biome.json                   # lint/format (npm run lint)
+├── tsconfig.json                # build (src/, tests excluded)
+└── tsconfig.scripts.json        # type-check src/ + scripts/ (npm run check-scripts)
 ```
 
 ## Stack
