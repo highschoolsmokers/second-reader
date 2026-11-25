@@ -1,0 +1,14 @@
+{
+  "name": "second-reader",
+  "description": "Truth-grounded literary criticism — an MCP server plus a long-form essay workflow. The bundled MCP server exposes eleven lit_* tools (corpus search, citation verification, claims lookup and graph, PDF ingestion, source procurement, annotation, bibliography export, and full-output verification) against a pgvector corpus. Five skills (setup-second-reader, start-essay, build-reading-list, procure-sources, verify-draft) and the lit-research agent drive a long-form critical essay end to end against the corpus.",
+  "owner": {
+    "name": "W.S. Gong"
+  },
+  "plugins": [
+    {
+      "name": "second-reader",
+      "source": "./",
+      "description": "Truth-grounded literary criticism — an MCP server plus a long-form essay workflow. The bundled MCP server exposes eleven lit_* tools (corpus search, citation verification, claims lookup and graph, PDF ingestion, source procurement, annotation, bibliography export, and full-output verification) against a pgvector corpus. Five skills (setup-second-reader, start-essay, build-reading-list, procure-sources, verify-draft) and the lit-research agent drive a long-form critical essay end to end against the corpus."
+    }
+  ]
+}

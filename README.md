@@ -493,7 +493,14 @@ This repo is a Claude Code plugin (`.claude-plugin/plugin.json`). Installing it 
 | Templates | `templates/` | Study, bibliography, and session-log scaffolds used by the agent |
 | Examples | `examples/` | A filled-in craft study and a complete essay project (`maxwell-bruner-essay/`) |
 
-Install it from a marketplace that lists it (`/plugin install second-reader@<marketplace>`), or load it straight from a checkout with `claude --plugin-dir /path/to/second-reader`.
+This repo is its own marketplace, so install it with:
+
+```bash
+/plugin marketplace add highschoolsmokers/second-reader
+/plugin install second-reader@second-reader
+```
+
+Or load it straight from a checkout with `claude --plugin-dir /path/to/second-reader`.
 
 The plugin runs `${CLAUDE_PLUGIN_ROOT}/dist/index.js`, which isn't committed. Run `npm install && npm run build` in the plugin directory once per plugin version (the `setup-second-reader` skill does this), and keep credentials in `~/.config/second-reader/.env` so plugin updates don't wipe them.
 
